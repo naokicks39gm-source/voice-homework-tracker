@@ -1,4 +1,4 @@
-const DICTIONARY = {
+export const DICTIONARY = {
   "一之江": "1-A",
   "一ノA": "1-A",
   "1のA": "1-A",

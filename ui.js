@@ -1,14 +1,6 @@
-function render(state){
-  renderState(state);
-  renderHistory(loadAll());
-}
+import { get } from "./storage.js";
 
-function formatDate(ts){
-  const d = new Date(ts);
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function renderState(state){
+export function renderState(state) {
   const submitted = [...state.submitted].sort((a, b) => a - b);
   const stateView = document.getElementById("state");
 
@@ -16,24 +8,25 @@ function renderState(state){
     <div>grade: ${state.grade ?? "-"}</div>
     <div>class: ${state.classId ?? "-"}</div>
     <div>homeworkNo: ${state.homeworkNo ?? "-"}</div>
-    <div>isCollecting: ${state.isCollecting}</div>
     <div>submitted: ${submitted.length ? submitted.join(", ") : "-"}</div>
   `;
 }
 
-function renderHistory(items){
-  const historyView = document.getElementById("history");
-  const MAX = 20;
-  const view = items.slice(0, MAX);
-  const lines = view
-    .map((item) => `
-      <div>
-        ${item.grade}年${item.classId}組宿題${item.homeworkNo}
-        （${formatDate(item.createdAt)}）
-        : ${item.submitted.join(",") || "-"}
-      </div>
-    `)
-    .join("<br>");
+export function renderList(key) {
+  const el = document.getElementById("list");
+  if (!el) {
+    return;
+  }
 
-  historyView.innerHTML = lines || "保存データなし";
+  el.innerHTML = "";
+  if (!key) {
+    return;
+  }
+
+  const data = get(key);
+  Object.keys(data).map(Number).sort((a, b) => a - b).forEach((n) => {
+    const div = document.createElement("div");
+    div.textContent = `${n}番`;
+    el.appendChild(div);
+  });
 }

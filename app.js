@@ -1,68 +1,92 @@
-function createInitialState(){
+import { getLastLine, normalizeText } from "./normalizer.js";
+import { parseCommand } from "./parser.js";
+import { add, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js";
+import { setSpeechHandler } from "./speech.js";
+import { renderList, renderState } from "./ui.js";
+
+function createInitialState() {
   return {
     grade: null,
     classId: null,
     homeworkNo: null,
-    isCollecting: false,
     submitted: new Set(),
-    lastSavedText: "",
     isLocked: false,
-    lastProcessedLine: "",
-    lastClassKey: "",
-    lastHomeworkKey: ""
+    lastProcessedLine: ""
   };
 }
 
+const textarea = document.getElementById("speechText");
 let state = createInitialState();
 
-const textarea = document.getElementById("speechText");
-
-window.onload = () => {
-  textarea.focus();
-  setTimeout(() => textarea.focus(), 100);
-};
-
-function submittedEqual(left, right){
-  if(left.size !== right.size){
-    return false;
-  }
-
-  for(const value of left){
-    if(!right.has(value)){
-      return false;
-    }
-  }
-
-  return true;
+function renderCurrent(key) {
+  renderState(state);
+  renderList(key);
 }
 
-function extractAfterSubmit(text){
-  const idx = text.indexOf("提出");
-  if(idx === -1){
-    return "";
+function syncState(cmd, key) {
+  state.grade = cmd.grade;
+  state.classId = cmd.classNum;
+  state.homeworkNo = cmd.hw;
+  state.submitted = new Set(getNumbers(key));
+}
+
+export function handleInput(text) {
+  const cmd = parseCommand(text);
+
+  if (!cmd.grade || !cmd.classNum || !cmd.hw) {
+    renderCurrent(null);
+    return;
   }
 
-  return text.slice(idx);
+  const key = getKey(cmd);
+
+  if (cmd.type === "submit") {
+    submit(key, cmd.nums);
+    syncState(cmd, key);
+    console.log("DEBUG_SUBMIT", JSON.stringify({
+      key,
+      submitted: getNumbers(key)
+    }));
+    renderCurrent(key);
+    return;
+  }
+
+  if (cmd.type === "add") {
+    add(key, cmd.nums);
+    syncState(cmd, key);
+    renderCurrent(key);
+    return;
+  }
+
+  if (cmd.type === "delete") {
+    remove(key, cmd.nums);
+    syncState(cmd, key);
+    renderCurrent(key);
+    return;
+  }
+
+  syncState(cmd, key);
+  renderCurrent(key);
 }
 
 textarea.addEventListener("input", () => {
-  if(state.isLocked){
+  if (state.isLocked) {
     return;
   }
 
   const raw = textarea.value;
   const line = normalizeText(getLastLine(raw));
 
-  if(line === state.lastProcessedLine){
+  if (line === state.lastProcessedLine) {
     return;
   }
 
   state.lastProcessedLine = line;
-  handleText(line, raw);
+  handleInput(raw);
 });
 
 textarea.addEventListener("blur", () => {
-  if(state.isLocked){
+  if (state.isLocked) {
     return;
   }
 
@@ -70,120 +94,23 @@ textarea.addEventListener("blur", () => {
 });
 
 setInterval(() => {
-  if(state.isLocked){
+  if (state.isLocked) {
     return;
   }
 
-  if(document.activeElement !== textarea){
+  if (document.activeElement !== textarea) {
     textarea.focus();
   }
 }, 3000);
 
-function handleText(text, raw){
-  const fullText = normalizeText(raw);
+window.onload = () => {
+  loadFromLocalStorage();
+  textarea.focus();
+  setTimeout(() => textarea.focus(), 100);
+  renderCurrent(null);
+};
 
-  if(/保存/.test(fullText)){
-    if(!state.grade || !state.classId || !state.homeworkNo){
-      return;
-    }
-
-    state.lastSavedText = text;
-    state.isLocked = true;
-    saveData(state);
-    textarea.blur();
-    textarea.value = "";
-    state.grade = null;
-    state.classId = null;
-    state.homeworkNo = null;
-    state.submitted.clear();
-    state.isCollecting = false;
-    state.lastProcessedLine = "";
-    state.lastClassKey = "";
-    state.lastHomeworkKey = "";
-    setTimeout(() => {
-      textarea.focus();
-      state.isLocked = false;
-    }, 300);
-
-    render(state);
-    return;
-  }
-
-  const addCmd = parseAddCommand(fullText);
-  if(addCmd){
-    const data = loadAll();
-    const key = makeKey(addCmd.grade, addCmd.classId, addCmd.homeworkNo);
-    const idx = data.findIndex((item) => item.key === key);
-
-    if(idx !== -1){
-      const set = new Set(data[idx].submitted);
-      addCmd.nums.forEach((n) => set.add(n));
-
-      data[idx].submitted = [...set].sort((a, b) => a - b);
-      data[idx].updatedAt = Date.now();
-
-      const item = data.splice(idx, 1)[0];
-      data.unshift(item);
-      saveAll(data);
-    }
-
-    render(state);
-    return;
-  }
-
-  const cls = parseClass(text);
-  if(cls){
-    const key = `${cls.grade}-${cls.classId}`;
-
-    if(key !== state.lastClassKey){
-      state.grade = cls.grade;
-      state.classId = cls.classId;
-      state.lastClassKey = key;
-      console.log("CLASS_PARSED", cls);
-    }
-  }
-
-  const hw = parseHomework(text);
-  if(hw){
-    if(hw !== state.lastHomeworkKey){
-      state.homeworkNo = hw;
-      state.lastHomeworkKey = hw;
-      console.log("HOMEWORK_SET", hw);
-    }
-  }
-
-  if(text.includes("提出")){
-    const before = new Set(state.submitted);
-
-    if(!state.isCollecting){
-      state.isCollecting = true;
-      state.submitted.clear();
-    }
-
-    const part = extractAfterSubmit(text);
-    const nums = parseNumbers(part);
-    nums.forEach((n) => state.submitted.add(n));
-
-    if(!submittedEqual(before, state.submitted)){
-      console.log("SUBMIT_UPDATE", [...state.submitted].sort((a, b) => a - b));
-    }
-
-    render(state);
-    return;
-  }
-
-  if(state.isCollecting){
-    const before = new Set(state.submitted);
-    const nums = parseNumbers(text);
-    nums.forEach((n) => state.submitted.add(n));
-
-    if(!submittedEqual(before, state.submitted)){
-      console.log("SUBMIT_UPDATE", [...state.submitted].sort((a, b) => a - b));
-    }
-  }
-
-  render(state);
-}
+setSpeechHandler(handleInput);
 
 textarea.focus();
-render(state);
+renderCurrent(null);

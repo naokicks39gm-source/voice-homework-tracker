@@ -1,3 +1,5 @@
+import { DICTIONARY } from "./config.js";
+
 const NUMBER_DICT = {
   "後": "5",
   "ご": "5",
@@ -21,7 +23,7 @@ const NUMBER_DICT = {
   "じゅう": "10"
 };
 
-function normalizeNumbers(text){
+export function normalizeNumbers(text) {
   let normalized = text;
 
   Object.entries(NUMBER_DICT).forEach(([key, value]) => {
@@ -31,7 +33,7 @@ function normalizeNumbers(text){
   return normalized;
 }
 
-function normalizeText(text){
+export function normalizeText(text) {
   let normalized = text;
 
   Object.entries(DICTIONARY).forEach(([key, value]) => {
@@ -43,12 +45,12 @@ function normalizeText(text){
   return normalized;
 }
 
-function getLastLine(text){
+export function getLastLine(text) {
   const lines = text.split("\n");
   return lines[lines.length - 1] || "";
 }
 
-function normalizeClass(value){
+export function normalizeClass(value) {
   const normalized = value
     .replace(/[Ａ-Ｚ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0))
     .toUpperCase();
