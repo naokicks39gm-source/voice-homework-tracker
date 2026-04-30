@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Voice Homework Tracker</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>宿題提出チェック</h1>
+    <textarea id="speechText" rows="8" autofocus></textarea>
+    <div id="state"></div>
+    <div id="historyWrapper">
+      <div id="history"></div>
+    </div>
+    <p>
+      使い方:
+      <br>①「1年A組」または「1-A」
+      <br>②「宿題 12」で宿題番号
+      <br>③「提出 1番 2番」で開始
+      <br>⑤「保存」
+    </p>
+  </main>
+
+  <script src="./config.js"></script>
+  <script src="./normalizer.js"></script>
+  <script src="./parser.js"></script>
+  <script src="./storage.js"></script>
+  <script src="./ui.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
