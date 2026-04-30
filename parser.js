@@ -57,7 +57,9 @@ export function parseCommand(text) {
   const nums = parseNumbers(t);
 
   let type = "input";
-  if (/(削除|消す|delete)/i.test(t)) {
+  if (/保存/.test(t)) {
+    type = "save";
+  } else if (/(削除|消す|delete)/i.test(t)) {
     type = "delete";
   } else if (/追加/.test(t)) {
     type = "add";

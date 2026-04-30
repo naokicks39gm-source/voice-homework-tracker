@@ -1,7 +1,9 @@
 const STORAGE_KEY = "homeworkMap";
+const HISTORY_KEY = "homeworkHistory";
 const LEGACY_KEY = "data";
 
 let homeworkMap = {};
+let pendingMap = {};
 
 function normalizeNums(nums) {
   return [...new Set((nums || []).map(Number).filter((n) => Number.isFinite(n)))].sort((a, b) => a - b);
@@ -81,6 +83,7 @@ export function loadFromLocalStorage() {
             }
           });
         });
+        pendingMap = JSON.parse(JSON.stringify(homeworkMap));
         return homeworkMap;
       }
     } catch {
@@ -89,6 +92,7 @@ export function loadFromLocalStorage() {
   }
 
   homeworkMap = migrateLegacyData();
+  pendingMap = JSON.parse(JSON.stringify(homeworkMap));
   saveToLocalStorage();
   return homeworkMap;
 }
@@ -97,40 +101,57 @@ export function saveToLocalStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(homeworkMap));
 }
 
+function saveHistory(entry) {
+  const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  history.push(entry);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
 export function add(key, nums) {
-  if (!homeworkMap[key]) {
-    homeworkMap[key] = {};
+  if (!pendingMap[key]) {
+    pendingMap[key] = {};
   }
 
   normalizeNums(nums).forEach((n) => {
-    homeworkMap[key][n] = true;
+    pendingMap[key][n] = true;
   });
-  saveToLocalStorage();
 }
 
 export function remove(key, nums) {
-  if (!homeworkMap[key]) {
+  if (!pendingMap[key]) {
     return;
   }
 
   normalizeNums(nums).forEach((n) => {
-    delete homeworkMap[key][n];
+    delete pendingMap[key][n];
   });
-  saveToLocalStorage();
 }
 
 export function submit(key, nums) {
-  homeworkMap[key] = {};
+  pendingMap[key] = {};
   normalizeNums(nums).forEach((n) => {
-    homeworkMap[key][n] = true;
+    pendingMap[key][n] = true;
   });
+}
+
+export function commit(key) {
+  homeworkMap[key] = { ...(pendingMap[key] || {}) };
   saveToLocalStorage();
+  saveHistory({
+    key,
+    data: homeworkMap[key],
+    timestamp: Date.now()
+  });
 }
 
 export function get(key) {
-  return homeworkMap[key] || {};
+  return pendingMap[key] || {};
 }
 
 export function getNumbers(key) {
   return Object.keys(get(key)).map(Number).sort((a, b) => a - b);
+}
+
+export function clearPending() {
+  pendingMap = {};
 }

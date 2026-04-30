@@ -30,3 +30,26 @@ export function renderList(key) {
     el.appendChild(div);
   });
 }
+
+export function renderHistory() {
+  const el = document.getElementById("history");
+  if (!el) {
+    return;
+  }
+
+  el.innerHTML = "";
+
+  const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+
+  history.slice().reverse().forEach((item) => {
+    const div = document.createElement("div");
+    const nums = Object.keys(item.data || {})
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((n) => `${n}番`)
+      .join(", ");
+
+    div.textContent = `${item.key} : ${nums || "-"}`;
+    el.appendChild(div);
+  });
+}

@@ -1,8 +1,8 @@
 import { getLastLine, normalizeText } from "./normalizer.js";
 import { parseCommand } from "./parser.js";
-import { add, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js";
-import { setSpeechHandler } from "./speech.js";
-import { renderList, renderState } from "./ui.js";
+import { add, commit, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js";
+import { setSpeechHandler, startSpeech } from "./speech.js";
+import { renderHistory, renderList, renderState } from "./ui.js";
 
 function createInitialState() {
   return {
@@ -17,28 +17,76 @@ function createInitialState() {
 
 const textarea = document.getElementById("speechText");
 let state = createInitialState();
+let lastProcessedText = "";
 
 function renderCurrent(key) {
   renderState(state);
   renderList(key);
 }
 
+function resetInput() {
+  const input = document.getElementById("speechText");
+  if (input) {
+    input.value = "";
+  }
+  state.submitted = new Set();
+  state.grade = null;
+  state.classId = null;
+  state.homeworkNo = null;
+  state.lastProcessedLine = "";
+}
+
+function includesSave(text) {
+  return normalizeText(text).includes("保存");
+}
+
+function keepInputReset() {
+  resetInput();
+  setTimeout(resetInput, 0);
+  setTimeout(resetInput, 50);
+}
+
+function resolveKey(cmd) {
+  const grade = cmd.grade ?? state.grade;
+  const classNum = cmd.classNum ?? state.classId;
+  const hw = cmd.hw ?? state.homeworkNo;
+
+  if (!grade || !classNum || !hw) {
+    return null;
+  }
+
+  return getKey({ grade, classNum, hw });
+}
+
 function syncState(cmd, key) {
-  state.grade = cmd.grade;
-  state.classId = cmd.classNum;
-  state.homeworkNo = cmd.hw;
+  state.grade = cmd.grade ?? state.grade;
+  state.classId = cmd.classNum ?? state.classId;
+  state.homeworkNo = cmd.hw ?? state.homeworkNo;
   state.submitted = new Set(getNumbers(key));
 }
 
 export function handleInput(text) {
-  const cmd = parseCommand(text);
+  if (text === lastProcessedText) {
+    return;
+  }
 
-  if (!cmd.grade || !cmd.classNum || !cmd.hw) {
+  lastProcessedText = text;
+
+  const cmd = parseCommand(text);
+  console.log("DEBUG_CMD", JSON.stringify({ text, cmd }));
+  const key = resolveKey(cmd);
+  if (cmd.type === "save" && !key) {
+    console.log("DEBUG_SKIP_INVALID_SAVE", JSON.stringify({ text, cmd }));
+    keepInputReset();
+    renderHistory();
     renderCurrent(null);
     return;
   }
 
-  const key = getKey(cmd);
+  if (!key) {
+    renderCurrent(null);
+    return;
+  }
 
   if (cmd.type === "submit") {
     submit(key, cmd.nums);
@@ -65,6 +113,20 @@ export function handleInput(text) {
     return;
   }
 
+  if (cmd.type === "save") {
+    console.log("DEBUG_SAVE", key);
+
+    if (cmd.nums?.length) {
+      add(key, cmd.nums);
+    }
+
+    commit(key);
+    keepInputReset();
+    renderHistory();
+    renderCurrent(key);
+    return;
+  }
+
   syncState(cmd, key);
   renderCurrent(key);
 }
@@ -83,6 +145,10 @@ textarea.addEventListener("input", () => {
 
   state.lastProcessedLine = line;
   handleInput(raw);
+
+  if (includesSave(raw)) {
+    keepInputReset();
+  }
 });
 
 textarea.addEventListener("blur", () => {
@@ -108,6 +174,8 @@ window.onload = () => {
   textarea.focus();
   setTimeout(() => textarea.focus(), 100);
   renderCurrent(null);
+  renderHistory();
+  startSpeech();
 };
 
 setSpeechHandler(handleInput);
