@@ -155,3 +155,11 @@ export function getNumbers(key) {
 export function clearPending() {
   pendingMap = {};
 }
+
+export function clearAllData() {
+  homeworkMap = {};
+  pendingMap = {};
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(HISTORY_KEY);
+  localStorage.removeItem(LEGACY_KEY);
+}
