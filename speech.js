@@ -19,6 +19,10 @@ function createRecognition() {
 
   nextRecognition.onresult = (event) => {
     const result = event.results[event.results.length - 1];
+    console.log("TRACE_SPEECH_EVENT", JSON.stringify({
+      isFinal: result.isFinal,
+      text: result[0].transcript
+    }));
 
     if (!result.isFinal) {
       return;
@@ -26,23 +30,31 @@ function createRecognition() {
 
     const text = result[0].transcript.trim();
     if (!text) {
+      console.log("TRACE_SPEECH_SKIP_EMPTY");
       return;
     }
 
     const normalized = normalizeText(text);
     if (!normalized || normalized === lastFinalText) {
+      console.log("TRACE_SPEECH_SKIP_DUPLICATE", JSON.stringify({
+        normalized,
+        lastFinalText
+      }));
       return;
     }
 
     lastFinalText = normalized;
     console.log("DEBUG_FINAL", normalized);
+    console.log("TRACE_SPEECH_FINAL", JSON.stringify({ normalized }));
 
     if (onRecognized) {
+      console.log("TRACE_SPEECH_HANDLER", JSON.stringify({ normalized }));
       onRecognized(normalized);
     }
   };
 
   nextRecognition.onend = () => {
+    console.log("TRACE_SPEECH_END");
     if (recognition === nextRecognition) {
       isRunning = false;
     }
@@ -52,6 +64,7 @@ function createRecognition() {
 }
 
 export function startSpeech() {
+  console.log("TRACE_SPEECH_START", JSON.stringify({ isRunning }));
   if (isRunning) {
     return;
   }
@@ -71,6 +84,7 @@ export function startSpeech() {
 }
 
 export function stopSpeech() {
+  console.log("TRACE_SPEECH_STOP", JSON.stringify({ hasRecognition: Boolean(recognition) }));
   if (!recognition) {
     return;
   }
@@ -89,16 +103,27 @@ export function setSpeechHandler(handler) {
   onRecognized = handler;
 }
 
+export function resetSpeechMemory() {
+  console.log("TRACE_SPEECH_MEMORY_RESET", JSON.stringify({ lastFinalText }));
+  lastFinalText = "";
+}
+
 export function dispatchRecognizedText(text) {
   const normalized = normalizeText(String(text).trim());
   if (!normalized || normalized === lastFinalText) {
+    console.log("TRACE_SPEECH_SKIP_DUPLICATE", JSON.stringify({
+      normalized,
+      lastFinalText
+    }));
     return;
   }
 
   lastFinalText = normalized;
   console.log("DEBUG_FINAL", normalized);
+  console.log("TRACE_SPEECH_FINAL", JSON.stringify({ normalized }));
 
   if (onRecognized) {
+    console.log("TRACE_SPEECH_HANDLER", JSON.stringify({ normalized }));
     onRecognized(normalized);
   }
 }

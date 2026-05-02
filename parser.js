@@ -52,12 +52,13 @@ export function parseNumbers(text) {
 
 export function parseCommand(text) {
   const t = normalizeText(text);
+  const cleanText = /保存$/.test(t.trim()) ? t.replace(/保存.*/, "保存") : t;
   const cls = parseClass(t);
   const hw = parseHomework(t);
   const nums = parseNumbers(t);
 
   let type = "input";
-  if (/保存/.test(t)) {
+  if (/保存$/.test(t.trim())) {
     type = "save";
   } else if (/(削除|消す|delete)/i.test(t)) {
     type = "delete";
@@ -69,7 +70,7 @@ export function parseCommand(text) {
 
   return {
     type,
-    text: t,
+    text: cleanText,
     grade: cls?.grade ?? null,
     classNum: cls?.classId ?? null,
     hw: hw ?? null,
