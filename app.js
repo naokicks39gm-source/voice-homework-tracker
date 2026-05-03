@@ -22,9 +22,11 @@ const exportCsvBtn = document.getElementById("exportCsvBtn");
 let state = createInitialState();
 let lastProcessedText = "";
 let lastSavedText = "";
+let lastSavedSignature = "";
 let lastDebugCmdSignature = "";
 let currentSummary = null;
 let currentSummaryContext = null;
+let saveLock = false;
 
 function renderCurrent(key) {
   renderState(state);
@@ -107,7 +109,9 @@ function getDebugKey(cmd, key) {
 function resetRuntimeMemory() {
   lastProcessedText = "";
   lastSavedText = "";
+  lastSavedSignature = "";
   lastDebugCmdSignature = "";
+  saveLock = false;
 }
 
 function escapeCsvValue(value) {
@@ -266,6 +270,7 @@ export function handleInput(text) {
   }
 
   if (cmd.type === "submit") {
+    saveLock = false;
     submit(key, cmd.nums);
     syncState(cmd, key);
     renderCurrent(key);
@@ -273,6 +278,7 @@ export function handleInput(text) {
   }
 
   if (cmd.type === "add") {
+    saveLock = false;
     add(key, cmd.nums);
     syncState(cmd, key);
     renderCurrent(key);
@@ -280,6 +286,7 @@ export function handleInput(text) {
   }
 
   if (cmd.type === "delete") {
+    saveLock = false;
     remove(key, cmd.nums);
     syncState(cmd, key);
     renderCurrent(key);
@@ -287,18 +294,31 @@ export function handleInput(text) {
   }
 
   if (cmd.type === "save") {
-    if (text === lastSavedText) {
+    if (typeof key !== "string" || !/^\d+-\d+-宿題\d+$/.test(key)) {
       return;
     }
 
-    console.log("DEBUG_SAVE", key);
+    if (saveLock) {
+      return;
+    }
 
     if (cmd.nums?.length) {
       add(key, cmd.nums);
     }
 
+    const savedNums = getNumbers(key).slice().sort((a, b) => a - b);
+    const signature = `${key}:${savedNums.join(",")}`;
+
+    if (signature === lastSavedSignature) {
+      return;
+    }
+
+    saveLock = true;
+    console.log("DEBUG_SAVE", key);
+
     commit(key);
     lastSavedText = text;
+    lastSavedSignature = signature;
     keepInputReset();
     resetSpeechMemory();
     renderHistory();
@@ -306,6 +326,7 @@ export function handleInput(text) {
     return;
   }
 
+  saveLock = false;
   syncState(cmd, key);
   renderCurrent(key);
 }
