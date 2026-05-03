@@ -117,3 +117,18 @@ export function renderStudentSummaryTable(rows) {
 
   container.appendChild(table);
 }
+
+export function downloadCsv(filename, text) {
+  const blob = new Blob(["\ufeff" + text], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

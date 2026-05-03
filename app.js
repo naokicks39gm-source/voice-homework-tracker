@@ -2,8 +2,8 @@ import { getLastLine, normalizeText } from "./normalizer.js";
 import { parseCommand } from "./parser.js?v=20260502-student-summary-01";
 import { add, clearAllData, commit, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js?v=20260502-reset-01";
 import { resetSpeechMemory, setSpeechHandler, startSpeech } from "./speech.js?v=20260502-logs-01";
-import { buildStudentSummary, buildSummary } from "./summary.js?v=20260504-student-rate-01";
-import { renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260504-student-rate-01";
+import { buildStudentSummary, buildSummary } from "./summary.js?v=20260504-csv-01";
+import { downloadCsv, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260504-csv-current-02";
 
 function createInitialState() {
   return {
@@ -18,10 +18,13 @@ function createInitialState() {
 
 const textarea = document.getElementById("speechText");
 const clearAllDataBtn = document.getElementById("clearAllDataBtn");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
 let state = createInitialState();
 let lastProcessedText = "";
 let lastSavedText = "";
 let lastDebugCmdSignature = "";
+let currentSummary = null;
+let currentSummaryContext = null;
 
 function renderCurrent(key) {
   renderState(state);
@@ -107,6 +110,89 @@ function resetRuntimeMemory() {
   lastDebugCmdSignature = "";
 }
 
+function escapeCsvValue(value) {
+  const text = String(value ?? "");
+  if (!/[",\n\r]/.test(text)) {
+    return text;
+  }
+
+  return `"${text.replaceAll("\"", "\"\"")}"`;
+}
+
+function buildCsvText(rows, context) {
+  const grade = context?.grade ?? "";
+  const classNum = context?.classNum ?? "";
+
+  if (rows[0]?.student !== undefined) {
+    const header = [
+      "学年",
+      "組",
+      "番号",
+      "提出済み宿題",
+      "未提出宿題",
+      "提出率"
+    ];
+    const lines = rows.map((row) => [
+      grade,
+      classNum,
+      row.student,
+      (row.submitted || []).join(","),
+      (row.missing || []).join(","),
+      `${row.submittedCount}/${row.totalHw}（${row.rate}%）`
+    ].map(escapeCsvValue).join(","));
+
+    return [header.join(","), ...lines].join("\r\n");
+  }
+
+  const header = [
+    "学年",
+    "組",
+    "宿題番号",
+    "提出済み人数",
+    "未提出人数",
+    "提出率",
+    "提出済み番号",
+    "未提出番号"
+  ];
+  const lines = rows.map((row) => [
+    grade,
+    classNum,
+    row.hw,
+    (row.submitted || []).length,
+    (row.missing || []).length,
+    Number.isFinite(row.rate)
+      ? row.rate
+      : Math.round(((row.submitted || []).length / (((row.submitted || []).length + (row.missing || []).length) || 1)) * 100),
+    (row.submitted || []).join(","),
+    (row.missing || []).join(",")
+  ].map(escapeCsvValue).join(","));
+
+  return [header.join(","), ...lines].join("\r\n");
+}
+
+function exportCsv() {
+  console.log("CSV_START");
+  console.log("CSV_STATE_EXISTS", !!currentSummary);
+
+  if (!currentSummary) {
+    console.log("CSV_ABORT_NO_STATE");
+    return;
+  }
+
+  console.log("CSV_STATE_SAMPLE", JSON.stringify(currentSummary[0] || null));
+
+  if (!Array.isArray(currentSummary) || currentSummary.length === 0) {
+    console.log("CSV_ABORT_EMPTY_STATE");
+    return;
+  }
+
+  const csvText = buildCsvText(currentSummary, currentSummaryContext);
+  console.log("CSV_TEXT_LENGTH", csvText.length);
+  const filename = "homework-summary.csv";
+  console.log("CSV_CALL_DOWNLOAD");
+  downloadCsv(filename, csvText);
+}
+
 export function handleInput(text) {
   const normalizedText = normalizeText(text);
   const rawSaveIndex = text.indexOf("保存");
@@ -133,6 +219,12 @@ export function handleInput(text) {
   if (cmd.type === "studentSummary") {
     const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
     const rows = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size);
+    currentSummary = rows;
+    currentSummaryContext = {
+      grade: cmd.grade,
+      classNum: cmd.classNum
+    };
+    console.log("CSV_SET_STUDENT_SUMMARY", rows.length);
     renderStudentSummaryTable(rows);
     return;
   }
@@ -141,12 +233,20 @@ export function handleInput(text) {
     const grade = cmd.grade ?? state.grade;
     const classNum = cmd.classNum ?? state.classId;
     if (!grade || !classNum || !cmd.size) {
+      currentSummary = [];
+      currentSummaryContext = null;
       renderSummaryTable([]);
       return;
     }
 
     const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
     const rows = buildSummary(history, grade, classNum, cmd.size);
+    currentSummary = rows;
+    currentSummaryContext = {
+      grade,
+      classNum
+    };
+    console.log("CSV_SET_SUMMARY", rows.length);
     renderSummaryTable(rows);
     return;
   }
@@ -252,9 +352,17 @@ clearAllDataBtn?.addEventListener("click", () => {
   resetInput();
   resetSpeechMemory();
   renderHistory();
+  currentSummary = null;
+  currentSummaryContext = null;
   renderSummaryTable([]);
   renderCurrent(null);
 });
+
+exportCsvBtn.addEventListener("click", () => {
+  console.log("CSV_CLICK");
+  exportCsv();
+});
+console.log("CSV_EVENT_BOUND");
 
 textarea.addEventListener("blur", () => {
   if (state.isLocked) {
