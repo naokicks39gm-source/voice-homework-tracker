@@ -1,8 +1,9 @@
 import { getLastLine, normalizeText } from "./normalizer.js";
-import { parseCommand } from "./parser.js";
+import { parseCommand } from "./parser.js?v=20260502-student-summary-01";
 import { add, clearAllData, commit, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js?v=20260502-reset-01";
 import { resetSpeechMemory, setSpeechHandler, startSpeech } from "./speech.js?v=20260502-logs-01";
-import { renderHistory, renderList, renderState } from "./ui.js";
+import { buildStudentSummary, buildSummary } from "./summary.js?v=20260504-student-rate-01";
+import { renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260504-student-rate-01";
 
 function createInitialState() {
   return {
@@ -92,6 +93,14 @@ function logDebugCommand(cmd, key) {
   }));
 }
 
+function getDebugKey(cmd, key) {
+  if (cmd.type === "studentSummary" && cmd.grade && cmd.classNum) {
+    return `${cmd.grade}-${cmd.classNum}`;
+  }
+
+  return key;
+}
+
 function resetRuntimeMemory() {
   lastProcessedText = "";
   lastSavedText = "";
@@ -115,7 +124,32 @@ export function handleInput(text) {
 
   const cmd = parseCommand(text);
   const key = resolveKey(cmd);
-  logDebugCommand(cmd, key);
+  logDebugCommand(cmd, getDebugKey(cmd, key));
+
+  if (cmd.type === "noop") {
+    return;
+  }
+
+  if (cmd.type === "studentSummary") {
+    const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+    const rows = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size);
+    renderStudentSummaryTable(rows);
+    return;
+  }
+
+  if (cmd.type === "summary") {
+    const grade = cmd.grade ?? state.grade;
+    const classNum = cmd.classNum ?? state.classId;
+    if (!grade || !classNum || !cmd.size) {
+      renderSummaryTable([]);
+      return;
+    }
+
+    const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+    const rows = buildSummary(history, grade, classNum, cmd.size);
+    renderSummaryTable(rows);
+    return;
+  }
 
   if (cmd.type === "save" && !key) {
     console.log("DEBUG_SKIP_INVALID_SAVE", JSON.stringify({ text }));
@@ -218,6 +252,7 @@ clearAllDataBtn?.addEventListener("click", () => {
   resetInput();
   resetSpeechMemory();
   renderHistory();
+  renderSummaryTable([]);
   renderCurrent(null);
 });
 

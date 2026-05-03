@@ -53,3 +53,67 @@ export function renderHistory() {
     el.appendChild(div);
   });
 }
+
+function chunk(values, size = 10) {
+  const result = [];
+  for (let i = 0; i < values.length; i += size) {
+    result.push(values.slice(i, i + size).join(", "));
+  }
+  return result.join("<br>");
+}
+
+export function renderSummaryTable(rows) {
+  const container = document.getElementById("summary");
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const table = document.createElement("table");
+  table.innerHTML = "<tr><th>宿題</th><th>提出</th><th>未提出</th></tr>";
+
+  rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.hw}</td>
+      <td class="submitted">${chunk(row.submitted)}</td>
+      <td class="missing">${chunk(row.missing)}</td>
+    `;
+    table.appendChild(tr);
+  });
+
+  container.appendChild(table);
+}
+
+export function renderStudentSummaryTable(rows) {
+  const container = document.getElementById("summary");
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const table = document.createElement("table");
+  table.innerHTML = `
+    <tr>
+      <th>番号</th>
+      <th>提出済み宿題</th>
+      <th>未提出宿題</th>
+      <th>提出率</th>
+    </tr>
+  `;
+
+  rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.student}</td>
+      <td class="submitted">${row.submitted.length ? chunk(row.submitted) : "-"}</td>
+      <td class="missing">${row.missing.length ? chunk(row.missing) : "-"}</td>
+      <td>${row.submittedCount}/${row.totalHw}（${row.rate}%）</td>
+    `;
+    table.appendChild(tr);
+  });
+
+  container.appendChild(table);
+}

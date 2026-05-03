@@ -61,3 +61,29 @@ textarea {
 .state-list dd {
   margin: 0;
 }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  vertical-align: top;
+}
+
+td {
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.6;
+}
+
+.submitted {
+  color: #2c7be5;
+}
+
+.missing {
+  color: #e55353;
+}
