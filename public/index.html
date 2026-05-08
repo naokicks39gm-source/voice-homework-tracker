@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>提出状況</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 16px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    th,
+    td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+      vertical-align: top;
+    }
+
+    .ok {
+      color: #2c7be5;
+    }
+
+    .ng {
+      color: #e55353;
+    }
+
+    #message {
+      margin: 12px 0;
+    }
+  </style>
+</head>
+<body>
+  <h2>提出状況</h2>
+  <p id="message">読み込み中...</p>
+  <table id="table">
+    <tr>
+      <th>学年</th>
+      <th>組</th>
+      <th>出席番号</th>
+      <th>提出率</th>
+      <th>提出済み宿題</th>
+      <th>未提出宿題</th>
+    </tr>
+  </table>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { collection, getDocs, getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmiSD84qxoFVqDsaFGl0mXSj4FQVJQ2-c",
+      authDomain: "voice-homework-checker.firebaseapp.com",
+      projectId: "voice-homework-checker",
+      storageBucket: "voice-homework-checker.firebasestorage.app",
+      messagingSenderId: "641056865813",
+      appId: "1:641056865813:web:3a413ca71c5fe75009581c",
+      measurementId: "G-P53NH2QYY8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const table = document.getElementById("table");
+    const message = document.getElementById("message");
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function homeworkList(values) {
+      if (!Array.isArray(values) || values.length === 0) {
+        return "-";
+      }
+
+      return values
+        .slice()
+        .sort((a, b) => Number(a) - Number(b))
+        .map((n) => `宿題${escapeHtml(n)}`)
+        .join(", ");
+    }
+
+    try {
+      const snapshot = await getDocs(collection(db, "studentShares"));
+
+      if (snapshot.empty) {
+        message.textContent = "表示できる提出状況はまだありません。";
+      } else {
+        message.textContent = "";
+      }
+
+      snapshot.docs
+        .map((doc) => doc.data())
+        .sort((a, b) => {
+          return Number(a.grade) - Number(b.grade)
+            || Number(a.classNum) - Number(b.classNum)
+            || Number(a.student) - Number(b.student);
+        })
+        .forEach((data) => {
+        table.insertAdjacentHTML("beforeend", `
+          <tr>
+            <td>${escapeHtml(data.grade)}</td>
+            <td>${escapeHtml(data.classNum)}</td>
+            <td>${escapeHtml(data.student)}</td>
+            <td>${escapeHtml(data.submittedCount)}/${escapeHtml(data.totalHw)}（${escapeHtml(data.rate)}%）</td>
+            <td class="ok">${homeworkList(data.submitted)}</td>
+            <td class="ng">${homeworkList(data.missing)}</td>
+          </tr>
+        `);
+        });
+    } catch {
+      message.textContent = "提出状況を読み込めませんでした。";
+    }
+  </script>
+</body>
+</html>

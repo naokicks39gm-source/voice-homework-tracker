@@ -131,3 +131,18 @@ export function downloadCsv(filename, text) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+export function downloadHtml(filename, htmlText) {
+  const blob = new Blob([htmlText], { type: "text/html;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

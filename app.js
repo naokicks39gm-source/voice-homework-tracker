@@ -3,7 +3,7 @@ import { parseCommand } from "./parser.js?v=20260502-student-summary-01";
 import { add, clearAllData, commit, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js?v=20260502-reset-01";
 import { resetSpeechMemory, setSpeechHandler, startSpeech } from "./speech.js?v=20260502-logs-01";
 import { buildStudentSummary, buildSummary } from "./summary.js?v=20260504-csv-01";
-import { downloadCsv, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260504-summary-no-missing-01";
+import { downloadCsv, downloadHtml, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260508-student-html-01";
 
 function createInitialState() {
   return {
@@ -21,6 +21,12 @@ const saveBtn = document.getElementById("saveBtn");
 const resetTextBtn = document.getElementById("resetTextBtn");
 const clearAllDataBtn = document.getElementById("clearAllDataBtn");
 const exportCsvBtn = document.getElementById("exportCsvBtn");
+const exportStudentHtmlBtn = document.getElementById("exportStudentHtmlBtn");
+const firestoreLoginBtn = document.getElementById("firestoreLoginBtn");
+const firestoreLogoutBtn = document.getElementById("firestoreLogoutBtn");
+const firestoreBackupBtn = document.getElementById("firestoreBackupBtn");
+const publishStudentShareBtn = document.getElementById("publishStudentShareBtn");
+const firestoreStatus = document.getElementById("firestoreStatus");
 let state = createInitialState();
 let lastProcessedText = "";
 let lastSavedText = "";
@@ -47,11 +53,6 @@ function resetInput({ resetGuards = false } = {}) {
     resetRuntimeMemory();
   }
 
-  console.log("RESET_DONE", JSON.stringify({
-    lastProcessedText,
-    saveLock,
-    lastSavedKey: null
-  }));
 }
 
 function keepInputReset() {
@@ -101,10 +102,6 @@ function logDebugCommand(cmd, key) {
   }
 
   lastDebugCmdSignature = signature;
-  console.log("DEBUG_CMD", JSON.stringify({
-    type: cmd.type,
-    key
-  }));
 }
 
 function getDebugKey(cmd, key) {
@@ -137,6 +134,65 @@ function escapeCsvValue(value) {
   }
 
   return `"${text.replaceAll("\"", "\"\"")}"`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildStudentShareHtml(rows) {
+  const bodyRows = rows
+    .slice()
+    .sort((a, b) => a.student - b.student)
+    .map((row) => {
+      const submitted = new Set(row.submitted || []);
+      const homeworkNumbers = [...(row.submitted || []), ...(row.missing || [])]
+        .filter((hw) => Number.isFinite(hw))
+        .sort((a, b) => a - b);
+      const detail = homeworkNumbers.map((hw) => {
+        const done = submitted.has(hw);
+        return `<span class="${done ? "ok" : "ng"}">HW${escapeHtml(hw)}</span>`;
+      }).join(" ");
+
+      return `
+        <tr>
+          <td>${escapeHtml(row.student)}</td>
+          <td>${escapeHtml(row.rate)}%</td>
+          <td>${detail || "-"}</td>
+        </tr>
+      `;
+    }).join("");
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>提出状況</title>
+  <style>
+    body { font-family: system-ui, sans-serif; }
+    table { border-collapse: collapse; width: 100%; }
+    td, th { border: 1px solid #999; padding: 6px; text-align: center; }
+    .ok { background: #c8f7c5; display: inline-block; margin: 2px; padding: 2px 4px; }
+    .ng { background: #f7c5c5; display: inline-block; margin: 2px; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <h1>提出状況</h1>
+  <table>
+    <tr>
+      <th>出席番号</th>
+      <th>提出率</th>
+      <th>詳細</th>
+    </tr>
+    ${bodyRows}
+  </table>
+</body>
+</html>`;
 }
 
 function buildCsvText(rows, context) {
@@ -191,26 +247,29 @@ function buildCsvText(rows, context) {
 }
 
 function exportCsv() {
-  console.log("CSV_START");
-  console.log("CSV_STATE_EXISTS", !!currentSummary);
-
   if (!currentSummary) {
-    console.log("CSV_ABORT_NO_STATE");
     return;
   }
 
-  console.log("CSV_STATE_SAMPLE", JSON.stringify(currentSummary[0] || null));
-
   if (!Array.isArray(currentSummary) || currentSummary.length === 0) {
-    console.log("CSV_ABORT_EMPTY_STATE");
     return;
   }
 
   const csvText = buildCsvText(currentSummary, currentSummaryContext);
-  console.log("CSV_TEXT_LENGTH", csvText.length);
   const filename = "homework-summary.csv";
-  console.log("CSV_CALL_DOWNLOAD");
   downloadCsv(filename, csvText);
+}
+
+function setFirestoreStatus(user) {
+  if (!firestoreStatus) {
+    return;
+  }
+
+  firestoreStatus.textContent = user ? "Firestore: ログイン済み" : "Firestore: 未ログイン";
+}
+
+async function loadFirebaseBackupModule() {
+  return import("./firebaseBackup.js?v=20260508-student-public-01");
 }
 
 export function handleInput(text) {
@@ -219,13 +278,6 @@ export function handleInput(text) {
   if (rawText === "__RESET_DONE__") {
     return;
   }
-
-  console.log("INPUT_START", JSON.stringify({
-    text: rawText,
-    lastProcessedText,
-    saveLock,
-    lastSavedKey: null
-  }));
 
   let processed = rawText.trim();
   processed = processed.replace(/^リセット[。、「」\s]*/, "");
@@ -250,12 +302,10 @@ export function handleInput(text) {
   }
 
   if (text && text === lastProcessedText) {
-    console.log("BLOCK_SAME_TEXT");
     return;
   }
 
   lastProcessedText = text;
-  console.log("SET_LAST_TEXT", lastProcessedText);
 
   const cmd = parseCommand(text);
   const key = resolveKey(cmd);
@@ -273,7 +323,6 @@ export function handleInput(text) {
       grade: cmd.grade,
       classNum: cmd.classNum
     };
-    console.log("CSV_SET_STUDENT_SUMMARY", rows.length);
     renderStudentSummaryTable(rows);
     return;
   }
@@ -295,7 +344,6 @@ export function handleInput(text) {
       grade,
       classNum
     };
-    console.log("CSV_SET_SUMMARY", rows.length);
     renderSummaryTable(rows);
     return;
   }
@@ -435,10 +483,94 @@ clearAllDataBtn?.addEventListener("click", () => {
 });
 
 exportCsvBtn.addEventListener("click", () => {
-  console.log("CSV_CLICK");
   exportCsv();
 });
-console.log("CSV_EVENT_BOUND");
+
+exportStudentHtmlBtn?.addEventListener("click", () => {
+  if (!Array.isArray(currentSummary) || currentSummary.length === 0) {
+    return;
+  }
+
+  if (currentSummary[0]?.student === undefined) {
+    return;
+  }
+
+  downloadHtml("student-summary.html", buildStudentShareHtml(currentSummary));
+});
+
+firestoreLoginBtn?.addEventListener("click", async () => {
+  try {
+    const { signInAdmin } = await loadFirebaseBackupModule();
+    const user = await signInAdmin();
+    setFirestoreStatus(user);
+    alert("管理者ログイン成功");
+  } catch {
+    alert("管理者ログイン失敗。Firebase Authentication設定を確認してください。");
+  }
+});
+
+firestoreLogoutBtn?.addEventListener("click", async () => {
+  try {
+    const { logoutAdmin } = await loadFirebaseBackupModule();
+    await logoutAdmin();
+    setFirestoreStatus(null);
+    alert("ログアウトしました");
+  } catch {
+    alert("ログアウト失敗。もう一度試してください。");
+  }
+});
+
+firestoreBackupBtn?.addEventListener("click", async () => {
+  try {
+    const { backupLocalDataToFirestore, getCurrentUser } = await loadFirebaseBackupModule();
+    if (!getCurrentUser()) {
+      alert("先に管理者ログインしてください。");
+      return;
+    }
+
+    const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
+    const homeworkHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+
+    await backupLocalDataToFirestore({
+      homeworkMap,
+      homeworkHistory,
+      createdAt: new Date(),
+      appVersion: "localStorage-backup-v1"
+    });
+
+    alert("Firestoreバックアップ成功");
+  } catch {
+    alert("Firestoreバックアップ失敗。接続設定やFirestoreルールを確認してください。");
+  }
+});
+
+publishStudentShareBtn?.addEventListener("click", async () => {
+  try {
+    if (!Array.isArray(currentSummary) || currentSummary.length === 0 || currentSummary[0]?.student === undefined) {
+      alert("先に生徒別集計を表示してください。");
+      return;
+    }
+
+    const { getCurrentUser, publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
+    if (!getCurrentUser()) {
+      alert("先に管理者ログインしてください。");
+      return;
+    }
+
+    await publishStudentSummaryToFirestore(currentSummary, currentSummaryContext);
+    alert("生徒公開データをFirestoreへ保存しました");
+  } catch {
+    alert("生徒公開データの保存に失敗しました。ログイン状態やFirestoreルールを確認してください。");
+  }
+});
+
+loadFirebaseBackupModule()
+  .then(({ watchAuthState }) => {
+    watchAuthState(setFirestoreStatus);
+  })
+  .catch(() => {
+    setFirestoreStatus(null);
+  });
 
 textarea.addEventListener("blur", () => {
   if (state.isLocked) {

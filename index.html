@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Voice Homework Tracker</title>
-  <link rel="stylesheet" href="./css/style.css?v=20260502-summary-table-02" />
+  <link rel="stylesheet" href="./css/style.css?v=20260508-usage-01" />
 </head>
 <body>
   <main class="app">
@@ -13,6 +13,12 @@
     <button id="resetTextBtn" type="button">リセット</button>
     <button id="clearAllDataBtn" type="button">全データ削除（完全リセット）</button>
     <button id="exportCsvBtn" type="button">CSV出力</button>
+    <button id="exportStudentHtmlBtn" type="button">生徒一覧HTML出力</button>
+    <button id="firestoreLoginBtn" type="button">管理者ログイン</button>
+    <button id="firestoreLogoutBtn" type="button">ログアウト</button>
+    <button id="firestoreBackupBtn" type="button">Firestoreバックアップ</button>
+    <button id="publishStudentShareBtn" type="button">生徒公開Firestore出力</button>
+    <span id="firestoreStatus">Firestore: 未ログイン</span>
     <p>CSVは現在表示している集計結果をダウンロードします。</p>
     <div id="state"></div>
     <div id="list"></div>
@@ -21,24 +27,41 @@
     </div>
     <div id="summary"></div>
     <div id="usage">
-      <h3>提出の使い方</h3>
-      <p>・1年1組宿題1提出1番2番</p>
+      <section class="usage-section">
+        <h3>音声入力</h3>
+        <ul class="usage-list">
+          <li><code>1年1組宿題1提出1番2番</code></li>
+          <li><code>1年1組宿題1追加3番</code></li>
+          <li><code>1年1組宿題1削除1番</code></li>
+        </ul>
+      </section>
 
-      <h3>追加の使い方</h3>
-      <p>・1年1組宿題1追加1番</p>
+      <section class="usage-section">
+        <h3>ボタン操作</h3>
+        <ul class="usage-list">
+          <li>保存: 現在の入力内容を保存</li>
+          <li>リセット: 入力欄と作業中表示をクリア</li>
+          <li>CSV出力: 現在表示中の集計をCSVで保存</li>
+          <li>生徒一覧HTML出力: 生徒別集計を共有用HTMLで保存</li>
+          <li>管理者ログイン: Firestoreバックアップ前にGoogleログイン</li>
+          <li>ログアウト: Firestoreのログイン状態を解除</li>
+          <li>Firestoreバックアップ: 現在の保存データと履歴をFirestoreへ退避</li>
+          <li>生徒公開Firestore出力: 生徒別集計を公開ページ用にFirestoreへ保存</li>
+          <li>全データ削除: 履歴と保存データを完全削除</li>
+        </ul>
+        <p class="usage-note">保存は音声ではなくボタンで実行します。</p>
+      </section>
 
-      <h3>削除の使い方</h3>
-      <p>・1年1組宿題1削除1番</p>
-
-      <h3>保存の使い方</h3>
-      <p>・保存</p>
-
-      <h3>集計の使い方</h3>
-      <p>・1年1組集計40人</p>
-      <p>・1年1組生徒別30人</p>
+      <section class="usage-section">
+        <h3>集計</h3>
+        <ul class="usage-list">
+          <li><code>1年1組集計40人</code></li>
+          <li><code>1年1組生徒別30人</code></li>
+        </ul>
+      </section>
     </div>
   </main>
 
-  <script type="module" src="./app.js?v=20260508-delete-save-01"></script>
+  <script type="module" src="./app.js?v=20260508-student-public-01"></script>
 </body>
 </html>

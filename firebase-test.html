@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Firebase Firestore Test</title>
+</head>
+<body>
+  <h1>Firestore テスト</h1>
+  <button id="addBtn" type="button">データ追加</button>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmiSD84qxoFVqDsaFGl0mXSj4FQVJQ2-c",
+      authDomain: "voice-homework-checker.firebaseapp.com",
+      projectId: "voice-homework-checker",
+      storageBucket: "voice-homework-checker.firebasestorage.app",
+      messagingSenderId: "641056865813",
+      appId: "1:641056865813:web:3a413ca71c5fe75009581c",
+      measurementId: "G-P53NH2QYY8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.getElementById("addBtn").addEventListener("click", async () => {
+      try {
+        await addDoc(collection(db, "homeworks"), {
+          name: "test",
+          status: "submitted",
+          createdAt: new Date()
+        });
+        alert("保存成功！");
+      } catch (error) {
+        alert("保存失敗。Firestoreルールや接続設定を確認してください。");
+        console.error(error);
+      }
+    });
+  </script>
+</body>
+</html>

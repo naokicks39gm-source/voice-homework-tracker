@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.uid in [
+          "ここに管理者UIDを入れる"
+        ];
+    }
+
+    match /backups/{backupId} {
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          "homeworkMap",
+          "homeworkHistory",
+          "createdAt",
+          "appVersion"
+        ]);
+      allow read, update, delete: if false;
+    }
+
+    match /studentShares/{shareId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          "grade",
+          "classNum",
+          "student",
+          "rate",
+          "submitted",
+          "missing",
+          "submittedCount",
+          "totalHw",
+          "updatedAt"
+        ]);
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -69,7 +69,6 @@ export function parseCommand(text) {
     const size = sizeMatch ? Number(sizeMatch[1]) : null;
 
     if (!grade || !classNum || !size) {
-      console.log("DEBUG_SKIP_INVALID_STUDENT_SUMMARY");
       return {
         type: "noop",
         text: t,
