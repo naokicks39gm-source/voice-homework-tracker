@@ -71,14 +71,13 @@ export function renderSummaryTable(rows) {
   container.innerHTML = "";
 
   const table = document.createElement("table");
-  table.innerHTML = "<tr><th>宿題</th><th>提出</th><th>未提出</th></tr>";
+  table.innerHTML = "<tr><th>宿題</th><th>提出</th></tr>";
 
   rows.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.hw}</td>
       <td class="submitted">${chunk(row.submitted)}</td>
-      <td class="missing">${chunk(row.missing)}</td>
     `;
     table.appendChild(tr);
   });

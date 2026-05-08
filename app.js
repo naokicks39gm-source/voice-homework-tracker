@@ -3,7 +3,7 @@ import { parseCommand } from "./parser.js?v=20260502-student-summary-01";
 import { add, clearAllData, commit, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js?v=20260502-reset-01";
 import { resetSpeechMemory, setSpeechHandler, startSpeech } from "./speech.js?v=20260502-logs-01";
 import { buildStudentSummary, buildSummary } from "./summary.js?v=20260504-csv-01";
-import { downloadCsv, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260504-csv-current-02";
+import { downloadCsv, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260504-summary-no-missing-01";
 
 function createInitialState() {
   return {
@@ -17,6 +17,8 @@ function createInitialState() {
 }
 
 const textarea = document.getElementById("speechText");
+const saveBtn = document.getElementById("saveBtn");
+const resetTextBtn = document.getElementById("resetTextBtn");
 const clearAllDataBtn = document.getElementById("clearAllDataBtn");
 const exportCsvBtn = document.getElementById("exportCsvBtn");
 let state = createInitialState();
@@ -33,16 +35,23 @@ function renderCurrent(key) {
   renderList(key);
 }
 
-function resetInput() {
-  const input = document.getElementById("speechText");
-  if (input) {
-    input.value = "";
-  }
+function resetInput({ resetGuards = false } = {}) {
+  textarea.value = "";
   state.submitted = new Set();
   state.grade = null;
   state.classId = null;
   state.homeworkNo = null;
   state.lastProcessedLine = "";
+
+  if (resetGuards) {
+    resetRuntimeMemory();
+  }
+
+  console.log("RESET_DONE", JSON.stringify({
+    lastProcessedText,
+    saveLock,
+    lastSavedKey: null
+  }));
 }
 
 function keepInputReset() {
@@ -112,6 +121,13 @@ function resetRuntimeMemory() {
   lastSavedSignature = "";
   lastDebugCmdSignature = "";
   saveLock = false;
+}
+
+function resetTextInputOnly() {
+  resetInput({ resetGuards: true });
+  resetSpeechMemory();
+  renderCurrent(null);
+  textarea.focus();
 }
 
 function escapeCsvValue(value) {
@@ -198,6 +214,33 @@ function exportCsv() {
 }
 
 export function handleInput(text) {
+  const rawText = String(text || "");
+
+  if (rawText === "__RESET_DONE__") {
+    return;
+  }
+
+  console.log("INPUT_START", JSON.stringify({
+    text: rawText,
+    lastProcessedText,
+    saveLock,
+    lastSavedKey: null
+  }));
+
+  let processed = rawText.trim();
+  processed = processed.replace(/^リセット[。、「」\s]*/, "");
+
+  if (lastSavedText && processed.indexOf(lastSavedText) !== -1) {
+    processed = extractNewPart(processed, lastSavedText);
+  }
+
+  if (!processed) {
+    return;
+  }
+
+  text = processed;
+  textarea.value = processed;
+
   const normalizedText = normalizeText(text);
   const rawSaveIndex = text.indexOf("保存");
   const normalizedSaveIndex = normalizedText.indexOf("保存");
@@ -206,11 +249,13 @@ export function handleInput(text) {
     text = (rawSaveIndex !== -1 ? text : normalizedText).slice(0, saveIndex + 2);
   }
 
-  if (text === lastProcessedText) {
+  if (text && text === lastProcessedText) {
+    console.log("BLOCK_SAME_TEXT");
     return;
   }
 
   lastProcessedText = text;
+  console.log("SET_LAST_TEXT", lastProcessedText);
 
   const cmd = parseCommand(text);
   const key = resolveKey(cmd);
@@ -294,35 +339,6 @@ export function handleInput(text) {
   }
 
   if (cmd.type === "save") {
-    if (typeof key !== "string" || !/^\d+-\d+-宿題\d+$/.test(key)) {
-      return;
-    }
-
-    if (saveLock) {
-      return;
-    }
-
-    if (cmd.nums?.length) {
-      add(key, cmd.nums);
-    }
-
-    const savedNums = getNumbers(key).slice().sort((a, b) => a - b);
-    const signature = `${key}:${savedNums.join(",")}`;
-
-    if (signature === lastSavedSignature) {
-      return;
-    }
-
-    saveLock = true;
-    console.log("DEBUG_SAVE", key);
-
-    commit(key);
-    lastSavedText = text;
-    lastSavedSignature = signature;
-    keepInputReset();
-    resetSpeechMemory();
-    renderHistory();
-    renderCurrent(key);
     return;
   }
 
@@ -338,7 +354,7 @@ textarea.addEventListener("input", () => {
 
   const raw = textarea.value.trim();
   let processed = raw;
-  if (lastSavedText && raw.includes(lastSavedText)) {
+  if (lastSavedText && raw.indexOf(lastSavedText) !== -1) {
     processed = extractNewPart(raw, lastSavedText);
     textarea.value = processed;
 
@@ -348,7 +364,7 @@ textarea.addEventListener("input", () => {
   }
 
   const value = processed.trim();
-  if (value === lastProcessedText) {
+  if (value && value === lastProcessedText) {
     return;
   }
 
@@ -360,6 +376,45 @@ textarea.addEventListener("input", () => {
 
   state.lastProcessedLine = line;
   handleInput(processed);
+});
+
+saveBtn?.addEventListener("click", () => {
+  const text = textarea.value.trim();
+  if (!text) {
+    return;
+  }
+
+  const cmd = parseCommand(text);
+  const key = resolveKey(cmd);
+
+  if (typeof key !== "string" || !/^\d+-\d+-宿題\d+$/.test(key)) {
+    return;
+  }
+
+  if (cmd.type !== "delete" && cmd.nums?.length) {
+    add(key, cmd.nums);
+  }
+
+  const savedNums = getNumbers(key).slice().sort((a, b) => a - b);
+  const signature = `${key}:${savedNums.join(",")}`;
+
+  if (signature === lastSavedSignature) {
+    return;
+  }
+
+  console.log("DEBUG_SAVE", key);
+
+  commit(key);
+  lastSavedText = text;
+  lastSavedSignature = signature;
+  keepInputReset();
+  resetSpeechMemory();
+  renderHistory();
+  renderCurrent(key);
+});
+
+resetTextBtn?.addEventListener("click", () => {
+  resetTextInputOnly();
 });
 
 clearAllDataBtn?.addEventListener("click", () => {
