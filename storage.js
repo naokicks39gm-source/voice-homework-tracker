@@ -23,7 +23,8 @@ function legacyKeyToCommand(key) {
 }
 
 export function getKey(cmd) {
-  return `${cmd.grade}-${cmd.classNum}-宿題${cmd.hw}`;
+  const year = new Date().getFullYear();
+  return `${year}-${cmd.grade}-${cmd.classNum}`;
 }
 
 function migrateLegacyData() {

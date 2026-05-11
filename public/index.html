@@ -1,57 +1,24 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>提出状況</title>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      margin: 16px;
-    }
 
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      max-width: 960px;
-    }
 
-    th,
-    td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: center;
-      vertical-align: top;
-    }
+<script type="module">
+console.log("A");
+console.log(document.body ? "BODY_OK" : "NO_BODY");
+console.log(document.getElementById("table"));
+console.log(document.getElementById("message"));
+console.log("B");
 
-    .ok {
-      color: #2c7be5;
-    }
 
-    .ng {
-      color: #e55353;
-    }
+console.log("ENTRY SCRIPT START");
 
-    #message {
-      margin: 12px 0;
-    }
-  </style>
-</head>
-<body>
-  <h2>提出状況</h2>
-  <p id="message">読み込み中...</p>
-  <table id="table">
-    <tr>
-      <th>学年</th>
-      <th>組</th>
-      <th>出席番号</th>
-      <th>提出率</th>
-      <th>提出済み宿題</th>
-      <th>未提出宿題</th>
-    </tr>
-  </table>
+window.addEventListener("error", (e) => {
+  console.log("GLOBAL ERROR:", e.message);
+});
 
-  <script type="module">
+window.addEventListener("unhandledrejection", (e) => {
+  console.log("PROMISE ERROR:", e.reason);
+});
+console.log("HTML_SCRIPT_HIT");
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { doc, getDoc, getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -67,75 +34,85 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+console.log("SCRIPT_LOADED");
+
 const table = document.getElementById("table");
 const message = document.getElementById("message");
 
-function escapeHtml(value) {
-  return String(value ?? "")
+function escapeHtml(v) {
+  return String(v ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
+    .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
 
-function homeworkList(values) {
-  if (!Array.isArray(values) || values.length === 0) {
-    return "-";
-  }
-
-  return values
+function list(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return "-";
+  return arr
     .slice()
-    .sort((a, b) => Number(a) - Number(b))
+    .sort((a, b) => a - b)
     .map((n) => `宿題${escapeHtml(n)}`)
     .join(", ");
 }
 
 try {
-  // ✅ URLから classId 取得（例: ?class=3-1）
   const params = new URLSearchParams(location.search);
-  const classId = params.get("class");
 
-  if (!classId) {
-    message.textContent = "クラス指定がありません（?class=3-1）";
-    throw new Error("classId missing");
+  const year = params.get("year") || new Date().getFullYear().toString();
+  const grade = params.get("grade");
+  const classNum = params.get("class");
+
+  console.log("PARAM_RAW:", location.search);
+  console.log("PARAMS:", { year, grade, classNum });
+
+  if (!grade || !classNum) {
+    message.textContent = "grade / class が不足";
+    throw new Error("missing params");
   }
 
-  // ✅ Firestoreから「クラス単位」で取得
-  const snap = await getDoc(doc(db, "studentShares", classId));
+  const docId = `${year}_${grade}_${classNum}`;
+
+  console.log("DOC_ID:", docId);
+  console.log("READ_PATH:", `studentShares/${docId}`);
+
+  const snap = await getDoc(doc(db, "studentShares", docId));
+
+  console.log("SNAP_EXISTS:", snap.exists());
 
   if (!snap.exists()) {
-    message.textContent = "このクラスのデータはありません";
+    console.log("SNAP_EMPTY");
+    message.textContent = "データなし";
     throw new Error("no data");
   }
 
   const data = snap.data();
+
+  console.log("SNAP_DATA:", data);
+
   const students = data.students;
 
   message.textContent = "";
 
-  // ✅ 生徒ごとに展開
   Object.entries(students)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
     .forEach(([studentId, info]) => {
-
       table.insertAdjacentHTML("beforeend", `
         <tr>
           <td>${escapeHtml(data.grade)}</td>
           <td>${escapeHtml(data.classNum)}</td>
           <td>${escapeHtml(studentId)}</td>
           <td>${escapeHtml(info.submittedCount)}/${escapeHtml(info.totalHw)}（${escapeHtml(info.rate)}%）</td>
-          <td class="ok">${homeworkList(info.submitted)}</td>
-          <td class="ng">${homeworkList(info.missing)}</td>
+          <td class="ok">${list(info.submitted)}</td>
+          <td class="ng">${list(info.missing)}</td>
         </tr>
       `);
-
     });
 
 } catch (e) {
-  console.error(e);
-  message.textContent = "提出状況を読み込めませんでした。";
+  console.error("ERROR:", e);
+  message.textContent = "読み込み失敗";
 }
 </script>
-</body>
-</html>
