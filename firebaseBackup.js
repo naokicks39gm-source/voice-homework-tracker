@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { addDoc, collection, doc, getFirestore, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { addDoc, collection, doc, getFirestore, serverTimestamp, setDoc }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDmiSD84qxoFVqDsaFGl0mXSj4FQVJQ2-c",
@@ -19,7 +20,7 @@ const provider = new GoogleAuthProvider();
 let currentUser = auth.currentUser;
 
 onAuthStateChanged(auth, (user) => {
-  console.log("auth changed");
+
   currentUser = user;
 });
 
@@ -54,53 +55,51 @@ export async function backupLocalDataToFirestore(data) {
 }
 
 export async function publishStudentSummaryToFirestore(rows, context) {
-    console.log("UID:", auth.currentUser?.uid);
-    console.log("ROWS LENGTH:", rows?.length);
-    console.log("ROWS RAW:", rows);
-    console.log("CONTEXT:", context);
-console.log("GRADE:", context?.grade);
-console.log("CLASS:", context?.classNum);
+  
+  console.log("context:", context);
+  
   if (!getCurrentUser()) {
     throw new Error("Firebase login required");
   }
 
   const grade = Number(context?.grade);
   const classNum = Number(context?.classNum);
+
   if (!Number.isFinite(grade) || !Number.isFinite(classNum)) {
     throw new Error("Student summary context required");
   }
 
-  const batch = writeBatch(db);
-  rows.forEach((row) => {
-    console.log("ROW:", row);
-    const student = Number(row.student);
-    console.log("STUDENT:", student);
-    if (!Number.isFinite(student)) {
-      return;
-    }
+  const classId = `${grade}-${classNum}`;
 
-    const id = `${grade}-${classNum}-${student}`;
-    batch.set(doc(db, "studentShares", id), {
-      grade,
-      classNum,
-      student,
+  // 生徒一覧をまとめる
+  const students = {};
+
+  rows.forEach((row) => {
+    const student = Number(row.student);
+    if (!Number.isFinite(student)) return;
+
+    students[student] = {
       rate: Number(row.rate) || 0,
       submitted: Array.isArray(row.submitted) ? row.submitted.map(Number).filter(Number.isFinite) : [],
       missing: Array.isArray(row.missing) ? row.missing.map(Number).filter(Number.isFinite) : [],
       submittedCount: Number(row.submittedCount) || 0,
-      totalHw: Number(row.totalHw) || 0,
-      updatedAt: serverTimestamp()
-    });
+      totalHw: Number(row.totalHw) || 0
+    };
   });
- 
 
   try {
-  await batch.commit();
-  console.log("SUCCESS");
-  return true;
-} catch (e) {
-  console.error("PUBLISH ERROR:", e.code, e.message);
-  throw e;
-}
+    await setDoc(doc(db, "studentShares", classId), {
+      grade,
+      classNum,
+      students,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
 
+    console.log("SUCCESS");
+    return true;
+
+  } catch (e) {
+    console.error("PUBLISH_ERROR", e.code, e.message);
+    throw e;
+  }
 }

@@ -52,76 +52,90 @@
   </table>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { collection, getDocs, getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { doc, getDoc, getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDmiSD84qxoFVqDsaFGl0mXSj4FQVJQ2-c",
-      authDomain: "voice-homework-checker.firebaseapp.com",
-      projectId: "voice-homework-checker",
-      storageBucket: "voice-homework-checker.firebasestorage.app",
-      messagingSenderId: "641056865813",
-      appId: "1:641056865813:web:3a413ca71c5fe75009581c",
-      measurementId: "G-P53NH2QYY8"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyDmiSD84qxoFVqDsaFGl0mXSj4FQVJQ2-c",
+  authDomain: "voice-homework-checker.firebaseapp.com",
+  projectId: "voice-homework-checker",
+  storageBucket: "voice-homework-checker.firebasestorage.app",
+  messagingSenderId: "641056865813",
+  appId: "1:641056865813:web:3a413ca71c5fe75009581c",
+  measurementId: "G-P53NH2QYY8"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const table = document.getElementById("table");
-    const message = document.getElementById("message");
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const table = document.getElementById("table");
+const message = document.getElementById("message");
 
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll("\"", "&quot;")
-        .replaceAll("'", "&#39;");
-    }
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
-    function homeworkList(values) {
-      if (!Array.isArray(values) || values.length === 0) {
-        return "-";
-      }
+function homeworkList(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return "-";
+  }
 
-      return values
-        .slice()
-        .sort((a, b) => Number(a) - Number(b))
-        .map((n) => `宿題${escapeHtml(n)}`)
-        .join(", ");
-    }
+  return values
+    .slice()
+    .sort((a, b) => Number(a) - Number(b))
+    .map((n) => `宿題${escapeHtml(n)}`)
+    .join(", ");
+}
 
-    try {
-      const snapshot = await getDocs(collection(db, "studentShares"));
+try {
+  // ✅ URLから classId 取得（例: ?class=3-1）
+  const params = new URLSearchParams(location.search);
+  const classId = params.get("class");
 
-      if (snapshot.empty) {
-        message.textContent = "表示できる提出状況はまだありません。";
-      } else {
-        message.textContent = "";
-      }
+  if (!classId) {
+    message.textContent = "クラス指定がありません（?class=3-1）";
+    throw new Error("classId missing");
+  }
 
-      snapshot.docs
-        .map((doc) => doc.data())
-        .sort((a, b) => {
-          return Number(a.grade) - Number(b.grade)
-            || Number(a.classNum) - Number(b.classNum)
-            || Number(a.student) - Number(b.student);
-        })
-        .forEach((data) => {
-        table.insertAdjacentHTML("beforeend", `
-          <tr>
-            <td>${escapeHtml(data.grade)}</td>
-            <td>${escapeHtml(data.classNum)}</td>
-            <td>${escapeHtml(data.student)}</td>
-            <td>${escapeHtml(data.submittedCount)}/${escapeHtml(data.totalHw)}（${escapeHtml(data.rate)}%）</td>
-            <td class="ok">${homeworkList(data.submitted)}</td>
-            <td class="ng">${homeworkList(data.missing)}</td>
-          </tr>
-        `);
-        });
-    } catch {
-      message.textContent = "提出状況を読み込めませんでした。";
-    }
-  </script>
+  // ✅ Firestoreから「クラス単位」で取得
+  const snap = await getDoc(doc(db, "studentShares", classId));
+
+  if (!snap.exists()) {
+    message.textContent = "このクラスのデータはありません";
+    throw new Error("no data");
+  }
+
+  const data = snap.data();
+  const students = data.students;
+
+  message.textContent = "";
+
+  // ✅ 生徒ごとに展開
+  Object.entries(students)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .forEach(([studentId, info]) => {
+
+      table.insertAdjacentHTML("beforeend", `
+        <tr>
+          <td>${escapeHtml(data.grade)}</td>
+          <td>${escapeHtml(data.classNum)}</td>
+          <td>${escapeHtml(studentId)}</td>
+          <td>${escapeHtml(info.submittedCount)}/${escapeHtml(info.totalHw)}（${escapeHtml(info.rate)}%）</td>
+          <td class="ok">${homeworkList(info.submitted)}</td>
+          <td class="ng">${homeworkList(info.missing)}</td>
+        </tr>
+      `);
+
+    });
+
+} catch (e) {
+  console.error(e);
+  message.textContent = "提出状況を読み込めませんでした。";
+}
+</script>
 </body>
 </html>
