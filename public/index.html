@@ -1,118 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>提出状況</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
 
+<body>
+
+  <h2>提出状況</h2>
+  <p id="message">読み込み中...</p>
+
+  <table id="table">
+    <tr>
+      <th>学年</th>
+      <th>組</th>
+      <th>出席番号</th>
+      <th>提出率</th>
+      <th>提出済み</th>
+      <th>未提出</th>
+    </tr>
+  </table>
 
 <script type="module">
-console.log("A");
-console.log(document.body ? "BODY_OK" : "NO_BODY");
-console.log(document.getElementById("table"));
-console.log(document.getElementById("message"));
-console.log("B");
-
-
-console.log("ENTRY SCRIPT START");
-
-window.addEventListener("error", (e) => {
-  console.log("GLOBAL ERROR:", e.message);
-});
-
-window.addEventListener("unhandledrejection", (e) => {
-  console.log("PROMISE ERROR:", e.reason);
-});
-console.log("HTML_SCRIPT_HIT");
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { doc, getDoc, getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+console.log("START");
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDmiSD84qxoFVqDsaFGl0mXSj4FQVJQ2-c",
+  apiKey: "YOUR_API_KEY",
   authDomain: "voice-homework-checker.firebaseapp.com",
   projectId: "voice-homework-checker",
   storageBucket: "voice-homework-checker.firebasestorage.app",
   messagingSenderId: "641056865813",
-  appId: "1:641056865813:web:3a413ca71c5fe75009581c",
-  measurementId: "G-P53NH2QYY8"
+  appId: "YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-console.log("SCRIPT_LOADED");
-
 const table = document.getElementById("table");
 const message = document.getElementById("message");
 
-function escapeHtml(v) {
-  return String(v ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+if (!table || !message) {
+  throw new Error("DOM not found");
 }
 
-function list(arr) {
-  if (!Array.isArray(arr) || arr.length === 0) return "-";
-  return arr
-    .slice()
-    .sort((a, b) => a - b)
-    .map((n) => `宿題${escapeHtml(n)}`)
-    .join(", ");
+const params = new URLSearchParams(location.search);
+
+const year = params.get("year") || new Date().getFullYear().toString();
+const grade = params.get("grade");
+const classNum = params.get("class");
+
+if (!grade || !classNum) {
+  message.textContent = "grade / class が不足";
+  throw new Error("missing params");
 }
+
+const docId = `${year}_${grade}_${classNum}`;
+
+console.log("DOC_ID:", docId);
 
 try {
-  const params = new URLSearchParams(location.search);
-
-  const year = params.get("year") || new Date().getFullYear().toString();
-  const grade = params.get("grade");
-  const classNum = params.get("class");
-
-  console.log("PARAM_RAW:", location.search);
-  console.log("PARAMS:", { year, grade, classNum });
-
-  if (!grade || !classNum) {
-    message.textContent = "grade / class が不足";
-    throw new Error("missing params");
-  }
-
-  const docId = `${year}_${grade}_${classNum}`;
-
-  console.log("DOC_ID:", docId);
-  console.log("READ_PATH:", `studentShares/${docId}`);
-
   const snap = await getDoc(doc(db, "studentShares", docId));
 
-  console.log("SNAP_EXISTS:", snap.exists());
-
   if (!snap.exists()) {
-    console.log("SNAP_EMPTY");
     message.textContent = "データなし";
     throw new Error("no data");
   }
 
   const data = snap.data();
-
-  console.log("SNAP_DATA:", data);
-
   const students = data.students;
 
   message.textContent = "";
 
   Object.entries(students)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .forEach(([studentId, info]) => {
+    .forEach(([id, info]) => {
       table.insertAdjacentHTML("beforeend", `
         <tr>
-          <td>${escapeHtml(data.grade)}</td>
-          <td>${escapeHtml(data.classNum)}</td>
-          <td>${escapeHtml(studentId)}</td>
-          <td>${escapeHtml(info.submittedCount)}/${escapeHtml(info.totalHw)}（${escapeHtml(info.rate)}%）</td>
-          <td class="ok">${list(info.submitted)}</td>
-          <td class="ng">${list(info.missing)}</td>
+          <td>${data.grade}</td>
+          <td>${data.classNum}</td>
+          <td>${id}</td>
+          <td>${info.rate}</td>
+          <td>${info.submitted}</td>
+          <td>${info.missing}</td>
         </tr>
       `);
     });
 
+  console.log("DONE");
+
 } catch (e) {
-  console.error("ERROR:", e);
+  console.error(e);
   message.textContent = "読み込み失敗";
 }
 </script>
+
+</body>
+</html>
