@@ -19,6 +19,7 @@ const provider = new GoogleAuthProvider();
 let currentUser = auth.currentUser;
 
 onAuthStateChanged(auth, (user) => {
+  console.log("auth changed");
   currentUser = user;
 });
 
@@ -54,6 +55,11 @@ export async function backupLocalDataToFirestore(data) {
 
 export async function publishStudentSummaryToFirestore(rows, context) {
     console.log("UID:", auth.currentUser?.uid);
+    console.log("ROWS LENGTH:", rows?.length);
+    console.log("ROWS RAW:", rows);
+    console.log("CONTEXT:", context);
+console.log("GRADE:", context?.grade);
+console.log("CLASS:", context?.classNum);
   if (!getCurrentUser()) {
     throw new Error("Firebase login required");
   }
@@ -66,7 +72,9 @@ export async function publishStudentSummaryToFirestore(rows, context) {
 
   const batch = writeBatch(db);
   rows.forEach((row) => {
+    console.log("ROW:", row);
     const student = Number(row.student);
+    console.log("STUDENT:", student);
     if (!Number.isFinite(student)) {
       return;
     }
@@ -84,6 +92,15 @@ export async function publishStudentSummaryToFirestore(rows, context) {
       updatedAt: serverTimestamp()
     });
   });
+ 
 
+  try {
   await batch.commit();
+  console.log("SUCCESS");
+  return true;
+} catch (e) {
+  console.error("PUBLISH ERROR:", e.code, e.message);
+  throw e;
+}
+
 }
