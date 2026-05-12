@@ -8,8 +8,8 @@ import { downloadCsv, downloadHtml, renderHistory, renderList, renderState, rend
 function createInitialState() {
   return {
     grade: null,
-    classId: null,
-    homeworkNo: null,
+    classNum: null,
+    hw: null,
     submitted: new Set(),
     isLocked: false,
     lastProcessedLine: ""
@@ -77,8 +77,8 @@ function resetInput({ resetGuards = false } = {}) {
   textarea.value = "";
   state.submitted = new Set();
   state.grade = null;
-  state.classId = null;
-  state.homeworkNo = null;
+  state.classNum = null;
+  state.hw = null;
   state.lastProcessedLine = "";
 
   if (resetGuards) {
