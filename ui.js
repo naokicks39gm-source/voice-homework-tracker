@@ -1,12 +1,14 @@
 import { get } from "./storage.js";
 
 export function renderState(state) {
-  const submitted = [...state.submitted].sort((a, b) => a - b);
+  const submitted = [...(state.submitted || [])].sort((a, b) => a - b);
   const stateView = document.getElementById("state");
+
+  if (!stateView) return;
 
   stateView.innerHTML = `
     <div>grade: ${state.grade ?? "-"}</div>
-    <div>class: ${state.classId ?? "-"}</div>
+    <div>class: ${state.classNum ?? "-"}</div>
     <div>homeworkNo: ${state.homeworkNo ?? "-"}</div>
     <div>submitted: ${submitted.length ? submitted.join(", ") : "-"}</div>
   `;

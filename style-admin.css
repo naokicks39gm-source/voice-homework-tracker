@@ -1,0 +1,105 @@
+body {
+  font-family: system-ui, sans-serif;
+  background: #f6f7f9;
+  margin: 0;
+  padding: 16px;
+}
+
+/* ===== レイアウト ===== */
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ===== タイトル ===== */
+h1 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+/* ===== テキストエリア（最重要） ===== */
+textarea {
+  width: 100%;
+  min-height: 160px;
+  font-size: 16px;
+  padding: 12px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  outline: none;
+}
+
+textarea:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74,144,226,0.2);
+}
+
+/* ===== ボタン ===== */
+button {
+  margin: 4px 4px 8px 0;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #f0f0f0;
+}
+
+/* ===== ステータス・補助 ===== */
+#state, #firestoreStatus {
+  font-size: 12px;
+  color: #666;
+}
+
+/* ===== 履歴エリア ===== */
+#historyWrapper {
+  max-height: 100px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+/* 中身が増えても崩れないように */
+#history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* 履歴の区切り強化 */
+.history-item {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+/* ===== テーブル（超重要） ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  margin-top: 10px;
+}
+
+th, td {
+  border: 1px solid #999;
+  padding: 6px;
+  text-align: center;
+}
+
+th {
+  background: #f2f2f2;
+  font-weight: 600;
+}
+
+/* ===== 集計エリア ===== */
+#summary {
+  margin-top: 12px;
+}

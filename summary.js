@@ -9,6 +9,7 @@ function getEntryNumbers(entry) {
 }
 
 function parseKey(key) {
+  // 「1-1-宿題8」の形式にマッチさせる
   const match = String(key).match(/^(\d+)-(\d+)-宿題(\d+)$/);
   if (!match) {
     return null;

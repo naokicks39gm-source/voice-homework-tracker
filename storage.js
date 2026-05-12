@@ -23,8 +23,9 @@ function legacyKeyToCommand(key) {
 }
 
 export function getKey(cmd) {
-  const year = new Date().getFullYear();
-  return `${year}-${cmd.grade}-${cmd.classNum}`;
+  // 年度を含めると summary.js の正規表現にヒットしなくなるため、
+  // 1-1-宿題8 の形式に統一します
+  return `${cmd.grade}-${cmd.classNum}-宿題${cmd.hw}`;
 }
 
 function migrateLegacyData() {

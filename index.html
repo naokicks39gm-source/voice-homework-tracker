@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <title>Voice Homework Tracker</title>
-  <link rel="stylesheet" href="./css/style.css?v=20260508-usage-01" />
+  <link rel="stylesheet" href="./style-admin.css?v=20260508-usage-01" />
 </head>
 <body>
   <main class="app">
     <h1>宿題提出チェック</h1>
+    <div id="metaControls"></div>
     <textarea id="speechText" rows="8" autofocus></textarea>
     <button id="saveBtn" type="button">保存</button>
     <button id="resetTextBtn" type="button">リセット</button>
@@ -25,6 +26,7 @@
     <div id="historyWrapper">
       <div id="history"></div>
     </div>
+
     <div id="summary"></div>
     <div id="usage">
       <section class="usage-section">

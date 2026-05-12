@@ -15,6 +15,11 @@ function createInitialState() {
     lastProcessedLine: ""
   };
 }
+const YEARS = [2024, 2025, 2026];
+
+const inputState = {
+  year: "2026"
+};
 
 const textarea = document.getElementById("speechText");
 const saveBtn = document.getElementById("saveBtn");
@@ -35,6 +40,33 @@ let lastDebugCmdSignature = "";
 let currentSummary = null;
 let currentSummaryContext = null;
 let saveLock = false;
+
+function renderMetaControls() {
+  const el = document.getElementById("metaControls");
+
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin:10px 0;">
+
+      <label>年度</label>
+      <select id="yearSelect">
+        ${YEARS.map(y => `
+          <option value="${y}" ${inputState.year == y ? "selected" : ""}>
+            ${y}
+          </option>
+        `).join("")}
+      </select>
+
+    </div>
+  `;
+
+  document.getElementById("yearSelect").onchange = e => {
+    inputState.year = e.target.value;
+    console.log("year:", inputState.year);
+  };
+}
+
 
 function renderCurrent(key) {
   renderState(state);
@@ -307,8 +339,13 @@ export function handleInput(text) {
 
   lastProcessedText = text;
 
-  const cmd = parseCommand(text);
-  const key = resolveKey(cmd);
+const cmd = parseCommand(text);
+const key = resolveKey(cmd);
+
+console.log("CMD:", cmd);
+console.log("KEY:", key);
+console.log("STATE:", state);
+
   logDebugCommand(cmd, getDebugKey(cmd, key));
 
   if (cmd.type === "noop") {
@@ -426,35 +463,48 @@ textarea.addEventListener("input", () => {
   handleInput(processed);
 });
 
-saveBtn?.addEventListener("click", () => {
+saveBtn?.addEventListener("click", async () => {
+  console.log("SAVE_CLICKED");
+
   const text = textarea.value.trim();
-  if (!text) {
-    return;
-  }
+  if (!text) return;
 
   const cmd = parseCommand(text);
   const key = resolveKey(cmd);
 
-  if (typeof key !== "string" || !/^\d+-\d+-宿題\d+$/.test(key)) {
-    return;
-  }
+  console.log("CMD:", cmd);
+  console.log("KEY:", key);
+  console.log("STATE:", state);
 
+  if (!key) return;
+
+  // ① ローカル反映はここ（必要）
   if (cmd.type !== "delete" && cmd.nums?.length) {
     add(key, cmd.nums);
   }
 
-  const savedNums = getNumbers(key).slice().sort((a, b) => a - b);
-  const signature = `${key}:${savedNums.join(",")}`;
+  commit(key);
 
-  if (signature === lastSavedSignature) {
-    return;
+  // ② Firestore（ここはOK）
+  try {
+    const id = `${inputState.year}_${state.grade}_${state.classId}`;
+
+    await setDoc(doc(db, "studentShares", id), {
+      year: inputState.year,
+      grade: state.grade,
+      class: state.classId,
+      text,
+      updatedAt: Date.now()
+    });
+  } catch (e) {
+    console.error("FIRESTORE_SAVE_ERROR:", e);
   }
 
-  console.log("DEBUG_SAVE", key);
+  console.log("BEFORE_RESET_STATE:", state);
 
-  commit(key);
   lastSavedText = text;
-  lastSavedSignature = signature;
+  lastSavedSignature = key;
+
   keepInputReset();
   resetSpeechMemory();
   renderHistory();
@@ -603,3 +653,4 @@ setSpeechHandler(handleInput);
 
 textarea.focus();
 renderCurrent(null);
+renderMetaControls();
