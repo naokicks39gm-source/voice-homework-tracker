@@ -4,11 +4,6 @@ import { add, clearAllData, commit, getKey, getNumbers, loadFromLocalStorage, re
 import { resetSpeechMemory, setSpeechHandler, startSpeech } from "./speech.js?v=20260502-logs-01";
 import { buildStudentSummary, buildSummary } from "./summary.js?v=20260504-csv-01";
 import { downloadCsv, downloadHtml, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260508-student-html-01";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { publishStudentSummaryToFirestore } from "./firebasebackup.js";
-
-
 
 function createInitialState() {
   return {
@@ -82,11 +77,10 @@ function resetInput({ resetGuards = false } = {}) {
   textarea.value = "";
   state.submitted = new Set();
   state.grade = null;
-  state.classId = null;
-  state.homeworkNo = null;
-  state.lastProcessedLine = "";
   state.classNum = null;
   state.hw = null;
+  state.lastProcessedLine = "";
+
   if (resetGuards) {
     resetRuntimeMemory();
   }
@@ -99,8 +93,8 @@ function keepInputReset() {
 
 function resolveKey(cmd) {
   const grade = cmd.grade ?? state.grade;
-  const classNum = cmd.classNum ?? state.classNum ?? state.classId;
-  const hw = cmd.hw ?? state.hw ?? state.homeworkNo;
+  const classNum = cmd.classNum ?? state.classId;
+  const hw = cmd.hw ?? state.homeworkNo;
 
   if (!grade || !classNum || !hw) {
     return null;
@@ -109,17 +103,10 @@ function resolveKey(cmd) {
   return getKey({ grade, classNum, hw });
 }
 
-function syncState(state, cmd, key, getNumbers) {
+function syncState(cmd, key) {
   state.grade = cmd.grade ?? state.grade;
-
-  // 新
-  state.classNum = cmd.classNum ?? state.classNum;
-  state.hw = cmd.hw ?? state.hw;
-
-  // 旧との互換
-  state.classId = state.classNum;
-  state.homeworkNo = state.hw;
-
+  state.classId = cmd.classNum ?? state.classId;
+  state.homeworkNo = cmd.hw ?? state.homeworkNo;
   state.submitted = new Set(getNumbers(key));
 }
 
@@ -415,7 +402,7 @@ console.log("STATE:", state);
   if (cmd.type === "submit") {
     saveLock = false;
     submit(key, cmd.nums);
-    syncState(state, cmd, key, getNumbers);
+    syncState(cmd, key);
     renderCurrent(key);
     return;
   }
@@ -423,7 +410,7 @@ console.log("STATE:", state);
   if (cmd.type === "add") {
     saveLock = false;
     add(key, cmd.nums);
-    syncState(state, cmd, key, getNumbers);
+    syncState(cmd, key);
     renderCurrent(key);
     return;
   }
@@ -431,7 +418,7 @@ console.log("STATE:", state);
   if (cmd.type === "delete") {
     saveLock = false;
     remove(key, cmd.nums);
-    syncState(state, cmd, key, getNumbers);
+    syncState(cmd, key);
     renderCurrent(key);
     return;
   }
@@ -441,7 +428,7 @@ console.log("STATE:", state);
   }
 
   saveLock = false;
-  syncState(state, cmd, key, getNumbers);
+  syncState(cmd, key);
   renderCurrent(key);
 }
 
@@ -499,29 +486,19 @@ saveBtn?.addEventListener("click", async () => {
   commit(key);
 
   // ② Firestore（ここはOK）
-// ② Firestore（修正版）
-try {
-  const context = {
-    grade: state.grade,
-    classNum: state.classId
-  };
+  try {
+    const id = `${inputState.year}_${state.grade}_${state.classId}`;
 
-  const rows = [
-    {
-      student: cmd.nums?.[0] || 1,
-      rate: 0,
-      submitted: cmd.nums || [],
-      missing: [],
-      submittedCount: cmd.nums?.length || 0,
-      totalHw: 1
-    }
-  ];
-
-  await publishStudentSummaryToFirestore(rows, context);
-
-} catch (e) {
-  console.error("FIRESTORE_SAVE_ERROR:", e);
-}
+    await setDoc(doc(db, "studentShares", id), {
+      year: inputState.year,
+      grade: state.grade,
+      class: state.classId,
+      text,
+      updatedAt: Date.now()
+    });
+  } catch (e) {
+    console.error("FIRESTORE_SAVE_ERROR:", e);
+  }
 
   console.log("BEFORE_RESET_STATE:", state);
 
