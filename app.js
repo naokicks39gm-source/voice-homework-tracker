@@ -53,6 +53,36 @@ let currentSummary = null;
 let currentSummaryContext = null;
 let saveLock = false;
 
+function applyCommand(cmd, key) {
+  if (cmd.type === "submit") {
+    applyCommand(cmd, key);
+    setState({
+      ...getState(),
+      submitted: new Set(getNumbers(key))
+    });
+    return;
+  }
+
+  if (cmd.type === "add") {
+    applyCommand(cmd, key);
+    setState({
+      ...getState(),
+      submitted: new Set(getNumbers(key))
+    });
+    return;
+  }
+
+  if (cmd.type === "delete") {
+    applyCommand(cmd, key);
+    setState({
+      ...getState(),
+      submitted: new Set(getNumbers(key))
+    });
+    return;
+  }
+}
+
+
 function renderCurrent(key) {
   renderState(getState()); // ★変更
   renderList(key);
@@ -195,7 +225,7 @@ export function handleInput(text) {
      ===================================================== */
 
   if (cmd.type === "submit") {
-    submit(key, cmd.nums);
+    applyCommand(cmd, key);
 
     setState({
       ...getState(),
@@ -207,7 +237,7 @@ export function handleInput(text) {
   }
 
   if (cmd.type === "add") {
-    add(key, cmd.nums);
+    applyCommand(cmd, key);
 
     setState({
       ...getState(),
@@ -219,7 +249,7 @@ export function handleInput(text) {
   }
 
   if (cmd.type === "delete") {
-    remove(key, cmd.nums);
+    applyCommand(cmd, key);
 
     setState({
       ...getState(),
@@ -284,7 +314,7 @@ saveBtn?.addEventListener("click", async () => {
   if (!key) return;
 
   if (cmd.type !== "delete" && cmd.nums?.length) {
-    add(key, cmd.nums);
+    applyCommand(cmd, key);
   }
 
   commit(key);
@@ -343,7 +373,7 @@ saveBtn?.addEventListener("click", async () => {
 
   // ① ローカル反映はここ（必要）
   if (cmd.type !== "delete" && cmd.nums?.length) {
-    add(key, cmd.nums);
+    applyCommand(cmd, key);
   }
 
   commit(key);
