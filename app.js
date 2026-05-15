@@ -61,25 +61,25 @@ function updateSubmittedState(key) {
 }
 
 function applyCommand(cmd, key) {
+  if (!key) return;
+
   if (cmd.type === "submit") {
-  applyCommand(cmd, key);
-  updateSubmittedState(key);
-  renderCurrent(key);
-  return;
-}
+    submit(key, cmd.nums);
+  }
 
   if (cmd.type === "add") {
-  applyCommand(cmd, key);
-  updateSubmittedState(key);
-  renderCurrent(key);
-  return;
-}
- if (cmd.type === "delete") {
-  applyCommand(cmd, key);
-  updateSubmittedState(key);
-  renderCurrent(key);
-  return;
-}
+    add(key, cmd.nums);
+  }
+
+  if (cmd.type === "delete") {
+    remove(key, cmd.nums);
+  }
+
+  // state更新はここに集約
+  setState({
+    ...getState(),
+    submitted: new Set(getNumbers(key) || [])
+  });
 }
 
 function renderCurrent(key) {
@@ -178,93 +178,36 @@ function resetTextInputOnly() {
    ========================================================= */
 
 export function handleInput(text) {
-  const state = getState(); // ★追加
+  // ===== 前処理 =====
+  const raw = String(text || "");
+  if (raw === "__RESET_DONE__") return;
 
-  const rawText = String(text || "");
-  if (rawText === "__RESET_DONE__") return;
-
-  let processed = rawText.trim();
+  let processed = raw.trim();
   processed = processed.replace(/^リセット[。、「」\s]*/, "");
 
-  if (lastSavedText && processed.indexOf(lastSavedText) !== -1) {
+  if (lastSavedText && processed.includes(lastSavedText)) {
     processed = extractNewPart(processed, lastSavedText);
   }
 
   if (!processed) return;
 
-  text = processed;
-  textarea.value = processed;
+  const normalized = normalizeText(processed);
 
-  const normalizedText = normalizeText(text);
-  const rawSaveIndex = text.indexOf("保存");
-  const normalizedSaveIndex = normalizedText.indexOf("保存");
-  const saveIndex = rawSaveIndex !== -1 ? rawSaveIndex : normalizedSaveIndex;
+  if (processed === lastProcessedText) return;
+  lastProcessedText = processed;
 
-  if (saveIndex !== -1) {
-    text = (rawSaveIndex !== -1 ? text : normalizedText).slice(0, saveIndex + 2);
-  }
-
-  if (text && text === lastProcessedText) return;
-
-  lastProcessedText = text;
-
-  const cmd = parseCommand(text);
-  const key = resolveKey(cmd);
-
-  console.log("CMD:", cmd);
-  console.log("KEY:", key);
-  console.log("STATE:", state);
-
-  logDebugCommand(cmd, getDebugKey(cmd, key));
-
+  // ===== コマンド処理 =====
+  const cmd = parseCommand(normalized);
   if (cmd.type === "noop") return;
 
-  /* =====================================================
-     STATE UPDATE POINT（ここが唯一の状態更新経路）
-     ===================================================== */
+  const key = resolveKey(cmd);
+  if (!key) return;
 
-  if (cmd.type === "submit") {
-    applyCommand(cmd, key);
+  applyCommand(cmd, key);
 
-    setState({
-      ...getState(),
-      submitted: new Set(getNumbers(key) || [])
-    });
-
-    renderCurrent(key);
-    return;
-  }
-
-  if (cmd.type === "add") {
-    applyCommand(cmd, key);
-
-    setState({
-      ...getState(),
-      submitted: new Set(getNumbers(key) || [])
-    });
-
-    renderCurrent(key);
-    return;
-  }
-
-  if (cmd.type === "delete") {
-    applyCommand(cmd, key);
-
-    setState({
-      ...getState(),
-      submitted: new Set(getNumbers(key) || [])
-    });
-
-    renderCurrent(key);
-    return;
-  }
-
-  /* summary系は変更なし */
-  /* save / firestore / UIもそのまま */
-
+  // ===== 描画 =====
   renderCurrent(key);
 }
-
 /* =========================================================
    EVENT HANDLERS（state直参照を排除）
    ========================================================= */
