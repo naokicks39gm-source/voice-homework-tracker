@@ -215,13 +215,30 @@ function buildCommand(text) {
   return { cmd, key };
 }
 
+function handleDelete(cmd, key) {
+  const current = getNumbers(key) || [];
+
+  if (!cmd.nums?.length) {
+    // 全削除
+    setNumbers(key, []);
+    return;
+  }
+
+  // 指定削除
+  const filtered = current.filter(n => !cmd.nums.includes(n));
+  setNumbers(key, filtered);
+}
+
+
 async function executeCommand(cmd, key, { save = false } = {}) {
-  // ① 状態更新
-  if (cmd.type !== "delete" && cmd.nums?.length) {
+  // ① コマンド分岐（ここが最重要）
+  if (cmd.type === "delete") {
+    handleDelete(cmd, key);
+  } else if (cmd.nums?.length) {
     applyCommand(cmd, key);
   }
 
-  // ② 保存処理
+  // ② 保存
   if (save) {
     commit(key);
 
@@ -237,7 +254,7 @@ async function executeCommand(cmd, key, { save = false } = {}) {
           rate: 0,
           submitted: getNumbers(key) || [],
           missing: [],
-          submittedCount: cmd.nums?.length || 0,
+          submittedCount: getNumbers(key)?.length || 0,
           totalHw: 1
         }
       ];
@@ -251,7 +268,7 @@ async function executeCommand(cmd, key, { save = false } = {}) {
     lastSavedSignature = key;
   }
 
-  // ③ 描画（最後に1回だけ）
+  // ③ 描画
   renderCurrent(key);
 }
 /* =========================================================
