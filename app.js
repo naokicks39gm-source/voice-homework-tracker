@@ -89,17 +89,16 @@ function resolveKey(cmd) {
   return getKey({ grade, classNum, hw });
 }
 
-function syncState(state, cmd, key, getNumbers) {
-  // ★変更：外から渡されたstateを使わない（破壊防止）
+export function applyCmdToState(cmd, submittedNumbers = []) {
   const current = getState();
 
   setState({
     grade: cmd.grade ?? current.grade,
     classNum: cmd.classNum ?? current.classNum,
     hw: cmd.hw ?? current.hw,
-    classId: cmd.classNum ?? current.classNum,
-    homeworkNo: cmd.hw ?? current.hw,
-    submitted: new Set(getNumbers(key) || [])
+    classId: cmd.classNum ?? current.classId,
+    homeworkNo: cmd.hw ?? current.homeworkNo,
+    submitted: new Set(submittedNumbers)
   });
 }
 

@@ -11,6 +11,18 @@ export function createState() {
   };
 }
 
+export function applyCmdToState(cmd, submittedNumbers = []) {
+  state = {
+    ...state,
+    grade: cmd.grade ?? state.grade,
+    classNum: cmd.classNum ?? state.classNum,
+    hw: cmd.hw ?? state.hw,
+    classId: cmd.classNum ?? state.classId,
+    homeworkNo: cmd.hw ?? state.homeworkNo,
+    submitted: new Set(submittedNumbers)
+  };
+}
+
 let state = createState();
 
 export function getState() {
