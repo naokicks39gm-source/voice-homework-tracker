@@ -1,17 +1,29 @@
-export function createInitialState() {
+export function createState() {
   return {
     grade: null,
     classId: null,
     homeworkNo: null,
     submitted: new Set(),
     isLocked: false,
-    lastProcessedLine: ""
+    lastProcessedLine: "",
+    lastProcessedText: "",
+    lastSavedText: ""
   };
 }
 
-export function syncState(state, cmd, key, getNumbers) {
-  state.grade = cmd.grade ?? state.grade;
-  state.classId = cmd.classNum ?? state.classId;
-  state.homeworkNo = cmd.hw ?? state.homeworkNo;
-  state.submitted = new Set(getNumbers(key) || []);
+let state = createState();
+
+export function getState() {
+  return state;
+}
+
+export function setState(patch) {
+  state = {
+    ...state,
+    ...patch
+  };
+}
+
+export function resetState() {
+  state = createState();
 }
