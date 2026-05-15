@@ -27,6 +27,9 @@ import { publishStudentSummaryToFirestore } from "./firebasebackup.js";
 // ★追加：state管理を外部化
 import { getState, setState } from "./src/state.js";
 
+import { handleDelete } from "./src/commands/delete.js";
+import { preprocessInput, buildCommand } from "./src/input/processor.js";
+
 const YEARS = [2024, 2025, 2026];
 
 const inputState = {
@@ -178,98 +181,29 @@ function resetTextInputOnly() {
    ========================================================= */
 
 export function handleInput(text) {
-  const input = preprocessInput(text);
-  if (!input) return;
+const input = preprocessInput(text);
+if (!input) return;
 
-  const { cmd, key } = buildCommand(input);
-  if (!cmd || cmd.type === "noop" || !key) return;
+const { cmd, key } = buildCommand(input, resolveKey);
+if (!cmd || cmd.type === "noop" || !key) return;
 
-  executeCommand(cmd, key);
+executeCommand(cmd, key);
 }
 
-function preprocessInput(text) {
-  const raw = String(text || "");
-  if (raw === "__RESET_DONE__") return null;
-
-  let processed = raw.trim();
-  processed = processed.replace(/^リセット[。、「」\s]*/, "");
-
-  if (lastSavedText && processed.includes(lastSavedText)) {
-    processed = extractNewPart(processed, lastSavedText);
-  }
-
-  if (!processed) return null;
-
-  if (processed === lastProcessedText) return null;
-  lastProcessedText = processed;
-
-  return normalizeText(processed);
-}
-
-function buildCommand(text) {
-  const cmd = parseCommand(text);
-  if (!cmd) return {};
-
-  const key = resolveKey(cmd);
-
-  return { cmd, key };
-}
-
-function handleDelete(cmd, key) {
-  const current = getNumbers(key) || [];
-
-  if (!cmd.nums?.length) {
-    // 全削除
-    setNumbers(key, []);
-    return;
-  }
-
-  // 指定削除
-  const filtered = current.filter(n => !cmd.nums.includes(n));
-  setNumbers(key, filtered);
-}
 
 
 async function executeCommand(cmd, key, { save = false } = {}) {
-  // ① コマンド分岐（ここが最重要）
-  if (cmd.type === "delete") {
-    handleDelete(cmd, key);
-  } else if (cmd.nums?.length) {
-    applyCommand(cmd, key);
-  }
+if (cmd.type === "delete") {
+handleDelete(cmd, key);
+} else if (cmd.nums?.length) {
+applyCommand(cmd, key);
+}
 
-  // ② 保存
-  if (save) {
-    commit(key);
+if (save) {
+commit(key);
+}
 
-    try {
-      const context = {
-        grade: getState().grade,
-        classNum: getState().classId
-      };
-
-      const rows = [
-        {
-          student: cmd.nums?.[0] || 1,
-          rate: 0,
-          submitted: getNumbers(key) || [],
-          missing: [],
-          submittedCount: getNumbers(key)?.length || 0,
-          totalHw: 1
-        }
-      ];
-
-      await publishStudentSummaryToFirestore(rows, context);
-    } catch (e) {
-      console.error("FIRESTORE_SAVE_ERROR:", e);
-    }
-
-    lastSavedText = textarea.value.trim();
-    lastSavedSignature = key;
-  }
-
-  // ③ 描画
-  renderCurrent(key);
+renderCurrent(key);
 }
 /* =========================================================
    EVENT HANDLERS（state直参照を排除）
