@@ -215,8 +215,43 @@ function buildCommand(text) {
   return { cmd, key };
 }
 
-function executeCommand(cmd, key) {
-  applyCommand(cmd, key);
+async function executeCommand(cmd, key, { save = false } = {}) {
+  // ① 状態更新
+  if (cmd.type !== "delete" && cmd.nums?.length) {
+    applyCommand(cmd, key);
+  }
+
+  // ② 保存処理
+  if (save) {
+    commit(key);
+
+    try {
+      const context = {
+        grade: getState().grade,
+        classNum: getState().classId
+      };
+
+      const rows = [
+        {
+          student: cmd.nums?.[0] || 1,
+          rate: 0,
+          submitted: getNumbers(key) || [],
+          missing: [],
+          submittedCount: cmd.nums?.length || 0,
+          totalHw: 1
+        }
+      ];
+
+      await publishStudentSummaryToFirestore(rows, context);
+    } catch (e) {
+      console.error("FIRESTORE_SAVE_ERROR:", e);
+    }
+
+    lastSavedText = textarea.value.trim();
+    lastSavedSignature = key;
+  }
+
+  // ③ 描画（最後に1回だけ）
   renderCurrent(key);
 }
 /* =========================================================
@@ -256,51 +291,18 @@ textarea.addEventListener("input", () => {
    ========================================================= */
 
 saveBtn?.addEventListener("click", async () => {
-  const state = getState();
-
   const text = textarea.value.trim();
   if (!text) return;
 
   const cmd = parseCommand(text);
   const key = resolveKey(cmd);
-
   if (!key) return;
 
-  if (cmd.type !== "delete" && cmd.nums?.length) {
-    applyCommand(cmd, key);
-  }
-
-  commit(key);
-
-  try {
-    const context = {
-      grade: getState().grade,
-      classNum: getState().classId
-    };
-
-    const rows = [
-      {
-        student: cmd.nums?.[0] || 1,
-        rate: 0,
-        submitted: getNumbers(key) || [],
-        missing: [],
-        submittedCount: cmd.nums?.length || 0,
-        totalHw: 1
-      }
-    ];
-
-    await publishStudentSummaryToFirestore(rows, context);
-  } catch (e) {
-    console.error("FIRESTORE_SAVE_ERROR:", e);
-  }
-
-  lastSavedText = text;
-  lastSavedSignature = key;
+  await executeCommand(cmd, key, { save: true });
 
   resetInput();
   resetSpeechMemory();
   renderHistory();
-  renderCurrent(key);
 });
 
 /* =========================================================
