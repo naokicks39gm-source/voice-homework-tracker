@@ -53,35 +53,34 @@ let currentSummary = null;
 let currentSummaryContext = null;
 let saveLock = false;
 
-function applyCommand(cmd, key) {
-  if (cmd.type === "submit") {
-    applyCommand(cmd, key);
-    setState({
-      ...getState(),
-      submitted: new Set(getNumbers(key))
-    });
-    return;
-  }
-
-  if (cmd.type === "add") {
-    applyCommand(cmd, key);
-    setState({
-      ...getState(),
-      submitted: new Set(getNumbers(key))
-    });
-    return;
-  }
-
-  if (cmd.type === "delete") {
-    applyCommand(cmd, key);
-    setState({
-      ...getState(),
-      submitted: new Set(getNumbers(key))
-    });
-    return;
-  }
+function updateSubmittedState(key) {
+  setState({
+    ...getState(),
+    submitted: new Set(getNumbers(key))
+  });
 }
 
+function applyCommand(cmd, key) {
+  if (cmd.type === "submit") {
+  applyCommand(cmd, key);
+  updateSubmittedState(key);
+  renderCurrent(key);
+  return;
+}
+
+  if (cmd.type === "add") {
+  applyCommand(cmd, key);
+  updateSubmittedState(key);
+  renderCurrent(key);
+  return;
+}
+ if (cmd.type === "delete") {
+  applyCommand(cmd, key);
+  updateSubmittedState(key);
+  renderCurrent(key);
+  return;
+}
+}
 
 function renderCurrent(key) {
   renderState(getState()); // ★変更
