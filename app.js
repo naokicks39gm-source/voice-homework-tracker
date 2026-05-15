@@ -78,9 +78,9 @@ function resetInput({ resetGuards = false } = {}) {
 function resolveKey(cmd) {
   const state = getState();
 
-  const grade = cmd.grade ?? state.grade;
-  const classNum = cmd.classNum ?? state.classNum ?? state.classId;
-  const hw = cmd.hw ?? state.hw ?? state.homeworkNo;
+  const grade = cmd.grade ?? getState().grade;
+  const classNum = cmd.classNum ?? state.classNum ?? getState().classId;
+  const hw = cmd.hw ?? getState().hw ?? state.homeworkNo;
 
   if (!grade || !classNum || !hw) {
     return null;
@@ -258,7 +258,7 @@ textarea.addEventListener("input", () => {
 
   const line = normalizeText(getLastLine(processed));
 
-  if (line === state.lastProcessedLine) return;
+  if (line === getState().lastProcessedLine) return;
 
   setState({
     ...state,
@@ -291,8 +291,8 @@ saveBtn?.addEventListener("click", async () => {
 
   try {
     const context = {
-      grade: state.grade,
-      classNum: state.classId
+      grade: getState().grade,
+      classNum: getState().classId
     };
 
     const rows = [
@@ -351,8 +351,8 @@ saveBtn?.addEventListener("click", async () => {
   // ② Firestore（ここはOK）
   try {
     const context = {
-      grade: state.grade,
-      classNum: state.classId
+      grade: getState().grade,
+      classNum: getState().classId
     };
 
     const rows = [
