@@ -178,9 +178,18 @@ function resetTextInputOnly() {
    ========================================================= */
 
 export function handleInput(text) {
-  // ===== 前処理 =====
+  const input = preprocessInput(text);
+  if (!input) return;
+
+  const { cmd, key } = buildCommand(input);
+  if (!cmd || cmd.type === "noop" || !key) return;
+
+  executeCommand(cmd, key);
+}
+
+function preprocessInput(text) {
   const raw = String(text || "");
-  if (raw === "__RESET_DONE__") return;
+  if (raw === "__RESET_DONE__") return null;
 
   let processed = raw.trim();
   processed = processed.replace(/^リセット[。、「」\s]*/, "");
@@ -189,23 +198,25 @@ export function handleInput(text) {
     processed = extractNewPart(processed, lastSavedText);
   }
 
-  if (!processed) return;
+  if (!processed) return null;
 
-  const normalized = normalizeText(processed);
-
-  if (processed === lastProcessedText) return;
+  if (processed === lastProcessedText) return null;
   lastProcessedText = processed;
 
-  // ===== コマンド処理 =====
-  const cmd = parseCommand(normalized);
-  if (cmd.type === "noop") return;
+  return normalizeText(processed);
+}
+
+function buildCommand(text) {
+  const cmd = parseCommand(text);
+  if (!cmd) return {};
 
   const key = resolveKey(cmd);
-  if (!key) return;
 
+  return { cmd, key };
+}
+
+function executeCommand(cmd, key) {
   applyCommand(cmd, key);
-
-  // ===== 描画 =====
   renderCurrent(key);
 }
 /* =========================================================
