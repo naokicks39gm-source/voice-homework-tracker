@@ -63,7 +63,7 @@ function resetInput({ resetGuards = false } = {}) {
 
   // ★変更：state直書き禁止 → setState
   setState({
-    submitted: new Set(),
+    submitted: new Set(getNumbers(key) || []),
     grade: null,
     classId: null,
     homeworkNo: null,
@@ -199,7 +199,7 @@ export function handleInput(text) {
 
     setState({
       ...getState(),
-      submitted: new Set(getNumbers(key))
+      submitted: new Set(getNumbers(key) || [])
     });
 
     renderCurrent(key);
@@ -211,7 +211,7 @@ export function handleInput(text) {
 
     setState({
       ...getState(),
-      submitted: new Set(getNumbers(key))
+      submitted: new Set(getNumbers(key) || [])
     });
 
     renderCurrent(key);
@@ -223,7 +223,7 @@ export function handleInput(text) {
 
     setState({
       ...getState(),
-      submitted: new Set(getNumbers(key))
+      submitted: new Set(getNumbers(key) || [])
     });
 
     renderCurrent(key);
@@ -299,7 +299,7 @@ saveBtn?.addEventListener("click", async () => {
       {
         student: cmd.nums?.[0] || 1,
         rate: 0,
-        submitted: cmd.nums || [],
+        submitted: getNumbers(key) || [],
         missing: [],
         submittedCount: cmd.nums?.length || 0,
         totalHw: 1
@@ -359,7 +359,7 @@ saveBtn?.addEventListener("click", async () => {
       {
         student: cmd.nums?.[0] || 1,
         rate: 0,
-        submitted: cmd.nums || [],
+        submitted: getNumbers(key) || [],
         missing: [],
         submittedCount: cmd.nums?.length || 0,
         totalHw: 1
