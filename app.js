@@ -81,8 +81,8 @@ function resetInput({ resetGuards = false } = {}) {
   textarea.value = "";
   state.submitted = new Set();
   state.grade = null;
-  state.classId = null;
-  state.homeworkNo = null;
+  state.classNum = null;
+  state.hw = null;
   state.lastProcessedLine = "";
   state.classNum = null;
   state.hw = null;
@@ -98,8 +98,8 @@ function keepInputReset() {
 
 function resolveKey(cmd) {
   const grade = cmd.grade ?? state.grade;
-  const classNum = cmd.classNum ?? state.classNum ?? state.classId;
-  const hw = cmd.hw ?? state.hw ?? state.homeworkNo;
+ const classNum = cmd.classNum ?? state.classNum;
+  const hw = cmd.hw ?? state.hw;
 
   if (!grade || !classNum || !hw) {
     return null;
@@ -116,8 +116,8 @@ function syncState(state, cmd, key, getNumbers) {
   state.hw = cmd.hw ?? state.hw;
 
   // 旧との互換
-  state.classId = state.classNum;
-  state.homeworkNo = state.hw;
+  state.classNum = state.classNum;
+  state.hw = state.hw;
 
   state.submitted = new Set(getNumbers(key));
 }
@@ -336,8 +336,8 @@ export function handleInput(text) {
 
 function resolveKeyFromState() {
   const grade = state.grade;
-  const classNum = state.classNum ?? state.classId;
-  const hw = state.hw ?? state.homeworkNo;
+  const classNum = state.classNum ?? state.classNum;
+  const hw = state.hw ?? state.hw;
 
   if (!grade || !classNum || !hw) {
     return null;
@@ -390,7 +390,7 @@ console.log("STATE:", state);
 
   if (cmd.type === "summary") {
     const grade = cmd.grade ?? state.grade;
-    const classNum = cmd.classNum ?? state.classId;
+    const classNum = cmd.classNum ?? state.classNum;
     if (!grade || !classNum || !cmd.size) {
       currentSummary = [];
       currentSummaryContext = null;
@@ -514,7 +514,7 @@ saveBtn?.addEventListener("click", async () => {
 try {
   const context = {
     grade: state.grade,
-    classNum: state.classId
+    classNum: state.classNum
   };
 
   const rows = [
@@ -695,9 +695,9 @@ function getCurrentKey() {
 
 
 function render(state) {
-  renderMetaControls(state);
-
-  renderCurrent();
+  renderState(state);
+  renderMetaControls();
+  renderCurrent(state.key);
 }
 
 setSpeechHandler(handleInput);
