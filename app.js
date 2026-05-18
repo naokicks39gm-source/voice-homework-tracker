@@ -8,7 +8,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { publishStudentSummaryToFirestore } from "./firebasebackup.js";
 
-
+function safeRender(state, cmd = null) {
+  requestAnimationFrame(() => {
+    render(state, cmd);
+  });
+}
 
 function createInitialState() {
   return {
@@ -47,15 +51,13 @@ let currentSummaryContext = null;
 let saveLock = false;
 
 function resolveKeyFromState(state) {
-  const grade = state.grade;
-  const classNum = state.classNum;
-  const hw = state.hw;
+  if (!state.grade || !state.classNum || !state.hw) return null;
 
-  if (!grade || !classNum || !hw) {
-    return null;
-  }
-
-  return getKey({ grade, classNum, hw });
+  return getKey({
+    grade: state.grade,
+    classNum: state.classNum,
+    hw: state.hw
+  });
 }
 
 function renderMetaControls() {
@@ -94,9 +96,9 @@ function keepInputReset() {
 }
 
 function resolveKey(cmd) {
-  const grade = cmd.grade ?? state.grade;
- const classNum = cmd.classNum ?? state.classNum;
-  const hw = cmd.hw ?? state.hw;
+  const grade = cmd.grade;
+  const classNum = cmd.classNum;
+  const hw = cmd.hw;
 
   if (!grade || !classNum || !hw) {
     return null;
@@ -105,13 +107,13 @@ function resolveKey(cmd) {
   return getKey({ grade, classNum, hw });
 }
 
-function syncState(state, cmd, key, getNumbers) {
+function syncState(state, cmd, key) {
   state.grade = cmd.grade ?? state.grade;
   state.classNum = cmd.classNum ?? state.classNum;
-  state.hw = cmd.hw ?? state.hw;
+  state.hw = cmd.hw ?? state.hw;   // ← これが欠落してる
 
-  if (key) {
-   cmd.nums.forEach(n => state.submitted.add(n));
+  if (key && cmd.nums) {
+    cmd.nums.forEach(n => state.submitted.add(n));
   }
 }
 
@@ -415,7 +417,7 @@ console.log("STATE:", state);
     saveLock = false;
     submit(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    render(state);
+    safeRender(state);
     return;
   }
 
@@ -423,7 +425,7 @@ console.log("STATE:", state);
     saveLock = false;
     add(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    render(state);
+    safeRender(state);
     return;
   }
 
@@ -431,7 +433,7 @@ console.log("STATE:", state);
     saveLock = false;
     remove(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    render(state);
+   safeRender(state);
     return;
   }
 
@@ -441,7 +443,7 @@ console.log("STATE:", state);
 
   saveLock = false;
   syncState(state, cmd, key, getNumbers);
-  render(state);
+  safeRender(state);
 }
 
 textarea.addEventListener("input", () => {
@@ -535,7 +537,7 @@ try {
   keepInputReset();
   resetSpeechMemory();
   renderHistory();
-  render(state);
+  safeRender(state);
 });
 
 resetTextBtn?.addEventListener("click", () => {
@@ -673,10 +675,9 @@ window.onload = () => {
 
 
 function initApp() {
-  loadFromLocalStorage();
+  loadFromLocalStorage(state); // ←これに変更
   startSpeech();
-
-  render(state);              // ← 依存を渡すだけ
+  safeRender(state);
 }
 
 
@@ -684,11 +685,10 @@ function getCurrentKey() {
   return null;
 }
 
-
 function render(state) {
   renderState(state);
   renderMetaControls();
-  renderList(resolveKeyFromState(state));
+  renderList(null); // state使うな
 }
 setSpeechHandler(handleInput);
 

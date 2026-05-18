@@ -9,30 +9,31 @@ export function renderState(state) {
   stateView.innerHTML = `
     <div>grade: ${state.grade ?? "-"}</div>
     <div>class: ${state.classNum ?? "-"}</div>
-    <div>homeworkNo: ${state.homeworkNo ?? "-"}</div>
+    <div>homeworkNo: ${state.hw ?? "-"}</div>
     <div>submitted: ${submitted.length ? submitted.join(", ") : "-"}</div>
   `;
 }
 
-export function renderList(key) {
+export function renderList(state) {
+  if (!state.grade || !state.classNum) return;
+
+  const keyPrefix = `${state.grade}-${state.classNum}`;
+
+  const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+
+  const filtered = history.filter(h => h.key.startsWith(keyPrefix));
+
   const el = document.getElementById("list");
-  if (!el) {
-    return;
-  }
+  if (!el) return;
 
   el.innerHTML = "";
-  if (!key) {
-    return;
-  }
 
-  const data = get(key);
-  Object.keys(data).map(Number).sort((a, b) => a - b).forEach((n) => {
+  filtered.forEach(item => {
     const div = document.createElement("div");
-    div.textContent = `${n}番`;
+    div.textContent = `${item.key}`;
     el.appendChild(div);
   });
 }
-
 export function renderHistory() {
   const el = document.getElementById("history");
   if (!el) {
