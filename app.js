@@ -405,12 +405,12 @@ console.log("STATE:", state);
     keepInputReset();
     resetSpeechMemory();
     renderHistory();
-    renderCurrent(null);
+  
     return;
   }
 
   if (!key) {
-    renderCurrent(null);
+
     return;
   }
 
