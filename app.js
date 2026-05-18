@@ -168,7 +168,6 @@ function resetRuntimeMemory() {
 function resetTextInputOnly() {
   resetInput({ resetGuards: true });
   resetSpeechMemory();
-  renderCurrent(null);
   textarea.focus();
 }
 
@@ -565,7 +564,6 @@ clearAllDataBtn?.addEventListener("click", () => {
   currentSummary = null;
   currentSummaryContext = null;
   renderSummaryTable([]);
-  renderCurrent(null);
 });
 
 exportCsvBtn.addEventListener("click", () => {
@@ -712,5 +710,3 @@ function render(state) {
 setSpeechHandler(handleInput);
 
 textarea.focus();
-renderCurrent(null);
-renderMetaControls();
