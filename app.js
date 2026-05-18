@@ -111,7 +111,7 @@ function syncState(state, cmd, key, getNumbers) {
   state.hw = cmd.hw ?? state.hw;
 
   if (key) {
-    state.submitted.add(key);
+   cmd.nums.forEach(n => state.submitted.add(n));
   }
 }
 
@@ -329,7 +329,13 @@ export function handleInput(text) {
 
 
   text = processed;
+const valueBefore = textarea.value;
+textarea.value = processed;
+
+// 同一なら無駄更新しない
+if (valueBefore !== processed) {
   textarea.value = processed;
+}
 
   const normalizedText = normalizeText(text);
   const rawSaveIndex = text.indexOf("保存");
