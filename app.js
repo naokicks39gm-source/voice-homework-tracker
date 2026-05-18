@@ -22,7 +22,7 @@ import {
   renderSummaryTable
 } from "./ui.js?v=20260508-student-html-01";
 
-import { publishStudentSummaryToFirestore } from "./firebasebackup.js";
+import { publishStudentSummaryToFirestore } from "./firebaseBackup.js";
 
 // ★追加：state管理を外部化
 import { getState, setState } from "./src/state.js";
@@ -30,11 +30,21 @@ import { getState, setState } from "./src/state.js";
 import { handleDelete } from "./src/commands/delete.js";
 import { preprocessInput, buildCommand } from "./src/input/processor.js";
 
+import {
+  renderMetaControls,
+  setFirestoreStatus
+} from "./ui.js";
+
+async function loadFirebaseBackupModule() {
+  return import("./firebaseBackup.js?v=20260508-student-public-01");
+}
+
 const YEARS = [2024, 2025, 2026];
 
 const inputState = {
   year: "2026"
 };
+renderMetaControls(inputState, YEARS);
 
 const textarea = document.getElementById("speechText");
 const saveBtn = document.getElementById("saveBtn");
@@ -90,10 +100,9 @@ function renderCurrent(key) {
   renderList(key);
 }
 
-function resetInput({ resetGuards = false } = {}) {
+function resetInput({ key, resetGuards = false } = {}) {
   textarea.value = "";
 
-  // ★変更：state直書き禁止 → setState
   setState({
     submitted: new Set(getNumbers(key) || []),
     grade: null,
@@ -251,7 +260,7 @@ saveBtn?.addEventListener("click", async () => {
 
   await executeCommand(cmd, key, { save: true });
 
-  resetInput();
+  resetInput({ key });
   resetSpeechMemory();
   renderHistory();
 });
@@ -477,4 +486,4 @@ setSpeechHandler(handleInput);
 
 textarea.focus();
 renderCurrent(null);
-renderMetaControls();
+renderMetaControls(inputState, YEARS);

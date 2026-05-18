@@ -148,3 +148,38 @@ export function downloadHtml(filename, htmlText) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// --- Meta Controls（年度セレクタ） ---
+export function renderMetaControls(inputState, YEARS) {
+  const el = document.getElementById("metaControls");
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin:10px 0;">
+      <label>年度</label>
+      <select id="yearSelect">
+        ${YEARS.map(y => `
+          <option value="${y}" ${inputState.year == y ? "selected" : ""}>
+            ${y}
+          </option>
+        `).join("")}
+      </select>
+    </div>
+  `;
+
+  document.getElementById("yearSelect").onchange = e => {
+    inputState.year = e.target.value;
+    console.log("year:", inputState.year);
+  };
+}
+
+
+// --- Firestore 状態表示 ---
+export function setFirestoreStatus(user) {
+  const el = document.getElementById("firestoreStatus");
+  if (!el) return;
+
+  el.textContent = user
+    ? "Firestore: ログイン済み"
+    : "Firestore: 未ログイン";
+}
