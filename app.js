@@ -72,24 +72,9 @@ function renderMetaControls() {
   };
 }
 
-function renderCurrent() {
-  const key = resolveKeyFromState();
-  renderList(key);
-}
 
-function resetInput({ resetGuards = false } = {}) {
+function resetInput() {
   textarea.value = "";
-  state.submitted = new Set();
-  state.grade = null;
-  state.classNum = null;
-  state.hw = null;
-  state.lastProcessedLine = "";
-  state.classNum = null;
-  state.hw = null;
-  if (resetGuards) {
-    resetRuntimeMemory();
-  }
-
 }
 
 function keepInputReset() {
@@ -119,7 +104,7 @@ function syncState(state, cmd, key, getNumbers) {
   state.classNum = state.classNum;
   state.hw = state.hw;
 
-  state.submitted = new Set(getNumbers(key));
+  state.submitted.add(key);
 }
 
 function extractNewPart(raw, last) {
@@ -427,7 +412,7 @@ console.log("STATE:", state);
     saveLock = false;
     submit(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    renderCurrent();
+    render(state);
     return;
   }
 
@@ -435,7 +420,7 @@ console.log("STATE:", state);
     saveLock = false;
     add(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    renderCurrent();
+    render(state);
     return;
   }
 
@@ -443,7 +428,7 @@ console.log("STATE:", state);
     saveLock = false;
     remove(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    renderCurrent();
+    render(state);
     return;
   }
 
@@ -453,7 +438,7 @@ console.log("STATE:", state);
 
   saveLock = false;
   syncState(state, cmd, key, getNumbers);
-  renderCurrent();
+  render(state);
 }
 
 textarea.addEventListener("input", () => {
@@ -500,7 +485,12 @@ saveBtn?.addEventListener("click", async () => {
   console.log("KEY:", key);
   console.log("STATE:", state);
 
-  if (!key) return;
+// state更新は常に実行
+syncState(state, cmd, key, getNumbers);
+
+if (!key) {
+  console.log("WARN: key is null but state updated");
+}
 
   // ① ローカル反映はここ（必要）
   if (cmd.type !== "delete" && cmd.nums?.length) {
@@ -542,7 +532,7 @@ try {
   keepInputReset();
   resetSpeechMemory();
   renderHistory();
-  renderCurrent();
+  render(state);
 });
 
 resetTextBtn?.addEventListener("click", () => {
@@ -697,9 +687,8 @@ function getCurrentKey() {
 function render(state) {
   renderState(state);
   renderMetaControls();
-  renderCurrent(state.key);
+  renderList(resolveKeyFromState());
 }
-
 setSpeechHandler(handleInput);
 
 textarea.focus();
