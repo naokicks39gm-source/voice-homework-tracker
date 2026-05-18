@@ -72,10 +72,9 @@ function renderMetaControls() {
   };
 }
 
-
-function renderCurrent(key) {
-  renderState(state);
-  renderList(key ?? resolveKeyFromState());
+function renderCurrent() {
+  const key = resolveKeyFromState();
+  renderList(key);
 }
 
 function resetInput({ resetGuards = false } = {}) {
@@ -428,7 +427,7 @@ console.log("STATE:", state);
     saveLock = false;
     submit(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    renderCurrent(key);
+    renderCurrent();
     return;
   }
 
@@ -436,7 +435,7 @@ console.log("STATE:", state);
     saveLock = false;
     add(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    renderCurrent(key);
+    renderCurrent();
     return;
   }
 
@@ -444,7 +443,7 @@ console.log("STATE:", state);
     saveLock = false;
     remove(key, cmd.nums);
     syncState(state, cmd, key, getNumbers);
-    renderCurrent(key);
+    renderCurrent();
     return;
   }
 
@@ -454,7 +453,7 @@ console.log("STATE:", state);
 
   saveLock = false;
   syncState(state, cmd, key, getNumbers);
-  renderCurrent(key);
+  renderCurrent();
 }
 
 textarea.addEventListener("input", () => {
@@ -543,7 +542,7 @@ try {
   keepInputReset();
   resetSpeechMemory();
   renderHistory();
-  renderCurrent(key);
+  renderCurrent();
 });
 
 resetTextBtn?.addEventListener("click", () => {
@@ -698,7 +697,7 @@ function getCurrentKey() {
 function render(state) {
   renderMetaControls(state);
 
-  renderCurrent(state.key);
+  renderCurrent();
 }
 
 setSpeechHandler(handleInput);
