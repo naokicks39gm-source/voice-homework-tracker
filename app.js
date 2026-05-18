@@ -46,6 +46,18 @@ let currentSummary = null;
 let currentSummaryContext = null;
 let saveLock = false;
 
+function resolveKeyFromState(state) {
+  const grade = state.grade;
+  const classNum = state.classNum;
+  const hw = state.hw;
+
+  if (!grade || !classNum || !hw) {
+    return null;
+  }
+
+  return getKey({ grade, classNum, hw });
+}
+
 function renderMetaControls() {
   const el = document.getElementById("metaControls");
 
@@ -95,16 +107,12 @@ function resolveKey(cmd) {
 
 function syncState(state, cmd, key, getNumbers) {
   state.grade = cmd.grade ?? state.grade;
-
-  // 新
   state.classNum = cmd.classNum ?? state.classNum;
   state.hw = cmd.hw ?? state.hw;
 
-  // 旧との互換
-  state.classNum = state.classNum;
-  state.hw = state.hw;
-
-  state.submitted.add(key);
+  if (key) {
+    state.submitted.add(key);
+  }
 }
 
 function extractNewPart(raw, last) {
@@ -319,17 +327,6 @@ export function handleInput(text) {
   }
 
 
-function resolveKeyFromState() {
-  const grade = state.grade;
-  const classNum = state.classNum ?? state.classNum;
-  const hw = state.hw ?? state.hw;
-
-  if (!grade || !classNum || !hw) {
-    return null;
-  }
-
-  return getKey({ grade, classNum, hw });
-}
 
   text = processed;
   textarea.value = processed;
@@ -668,9 +665,7 @@ window.onload = () => {
 };
 
 
-function resolveKeyFromState() {
-  return null;
-}
+
 function initApp() {
   loadFromLocalStorage();
   startSpeech();
@@ -687,7 +682,7 @@ function getCurrentKey() {
 function render(state) {
   renderState(state);
   renderMetaControls();
-  renderList(resolveKeyFromState());
+  renderList(resolveKeyFromState(state));
 }
 setSpeechHandler(handleInput);
 
