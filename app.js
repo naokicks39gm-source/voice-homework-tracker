@@ -74,8 +74,10 @@ function renderMetaControls() {
 
 
 function renderCurrent(key) {
+  const safeKey = key ?? null;
+
   renderState(state);
-  renderList(key);
+  renderList(safeKey);
 }
 
 function resetInput({ resetGuards = false } = {}) {
