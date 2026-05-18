@@ -686,7 +686,6 @@ function initApp() {
   loadFromLocalStorage();
   startSpeech();
 
-  const state = getState();   // ← ここで確定
   render(state);              // ← 依存を渡すだけ
 }
 
@@ -695,11 +694,6 @@ function getCurrentKey() {
   return null;
 }
 
-function getState() {
-  return {
-    key: loadFromLocalStorage()?.key ?? null,
-  };
-}
 
 function render(state) {
   renderMetaControls(state);
