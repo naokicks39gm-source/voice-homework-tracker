@@ -74,10 +74,8 @@ function renderMetaControls() {
 
 
 function renderCurrent(key) {
-  const safeKey = key ?? null;
-
   renderState(state);
-  renderList(safeKey);
+  renderList(key ?? resolveKeyFromState());
 }
 
 function resetInput({ resetGuards = false } = {}) {
@@ -336,6 +334,19 @@ export function handleInput(text) {
   if (!processed) {
     return;
   }
+
+
+function resolveKeyFromState() {
+  const grade = state.grade;
+  const classNum = state.classNum ?? state.classId;
+  const hw = state.hw ?? state.homeworkNo;
+
+  if (!grade || !classNum || !hw) {
+    return null;
+  }
+
+  return getKey({ grade, classNum, hw });
+}
 
   text = processed;
   textarea.value = processed;
@@ -666,13 +677,37 @@ setInterval(() => {
 }, 3000);
 
 window.onload = () => {
-  loadFromLocalStorage();
-  textarea.focus();
-  setTimeout(() => textarea.focus(), 100);
-  renderCurrent(null);
-  renderHistory();
-  startSpeech();
+  initApp();
 };
+
+
+function resolveKeyFromState() {
+  return null;
+}
+function initApp() {
+  loadFromLocalStorage();
+  startSpeech();
+
+  const state = getState();   // ← ここで確定
+  render(state);              // ← 依存を渡すだけ
+}
+
+
+function getCurrentKey() {
+  return null;
+}
+
+function getState() {
+  return {
+    key: loadFromLocalStorage()?.key ?? null,
+  };
+}
+
+function render(state) {
+  renderMetaControls(state);
+
+  renderCurrent(state.key);
+}
 
 setSpeechHandler(handleInput);
 
