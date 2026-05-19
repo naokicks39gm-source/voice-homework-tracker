@@ -112,10 +112,9 @@ function syncState(state, cmd, key) {
   state.classNum = cmd.classNum ?? state.classNum;
   state.hw = cmd.hw ?? state.hw;
 
-  // submit以外は無視
+  // submit以外は「追加しない」だけ
   if (cmd.type !== "submit") return;
 
-  // numsがないsubmitは無視
   if (!cmd.nums || cmd.nums.length === 0) return;
 
   cmd.nums.forEach(n => state.submitted.add(Number(n)));
@@ -364,8 +363,7 @@ const key = resolveKey(cmd);
 // ① noopは即終了（ログ出さない）
 if (!cmd || cmd.type === "noop") return;
 
-// ② studentSummary以外はkey必須
-if (cmd.type !== "studentSummary" && !key) return;
+
 
 // ③ 必要なときだけログ
 console.log("CMD:", cmd);
@@ -717,9 +715,17 @@ function getCurrentKey() {
 function render(state) {
   renderState(state);
   renderMetaControls();
-  if (state && state.grade != null && state.classNum != null) {
-  renderList(state);
+
+  const listEl = document.getElementById("list");
+
+  // grade / classNum が不正なら描画せずクリア
+if (state.grade == null || state.classNum == null) {
+  const listEl = document.getElementById("list");
+  if (listEl) listEl.innerHTML = "";
+  return;
 }
+
+  renderList(state);
 }
 setSpeechHandler(handleInput);
 

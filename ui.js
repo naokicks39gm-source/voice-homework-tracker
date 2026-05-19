@@ -16,7 +16,10 @@ export function renderState(state) {
 
 export function renderList(state) {
   if (!state.grade || !state.classNum) return;
-
+ if (!state.grade || !state.classNum) {
+  document.getElementById("list").innerHTML = "";
+  return;
+}
   const keyPrefix = `${state.grade}-${state.classNum}`;
 
   const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");

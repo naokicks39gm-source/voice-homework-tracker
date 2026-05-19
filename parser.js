@@ -43,11 +43,15 @@ export function parseHomework(text) {
 }
 
 export function parseNumbers(text) {
-  const matches = text.match(/(\d+)\s*(番|ばん)/g);
-  if (!matches) {
-    return [];
+  const result = [];
+  const regex = /(\d+)\s*(番|ばん)/g;
+  let m;
+
+  while ((m = regex.exec(text)) !== null) {
+    result.push(Number(m[1]));
   }
-  return matches.map((m) => Number(m.match(/\d+/)[0]));
+
+  return result;
 }
 
 export function parseSize(text) {
