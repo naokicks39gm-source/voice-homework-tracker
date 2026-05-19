@@ -112,8 +112,8 @@ function syncState(state, cmd, key) {
   state.classNum = cmd.classNum ?? state.classNum;
   state.hw = cmd.hw ?? state.hw;   // ← これが欠落してる
 
-  if (key && cmd.nums) {
-    cmd.nums.forEach(n => state.submitted.add(n));
+  if (key && Array.isArray(cmd.nums)) {
+    cmd.nums.forEach(n => state.submitted.add(Number(n)));
   }
 }
 
