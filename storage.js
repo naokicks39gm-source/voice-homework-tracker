@@ -130,7 +130,10 @@ export function remove(key, nums) {
 }
 
 export function submit(key, nums) {
-  pendingMap[key] = {};
+  if (!pendingMap[key]) {
+    pendingMap[key] = {};
+  }
+
   normalizeNums(nums).forEach((n) => {
     pendingMap[key][n] = true;
   });
@@ -139,6 +142,7 @@ export function submit(key, nums) {
 export function commit(key) {
   homeworkMap[key] = { ...(pendingMap[key] || {}) };
   saveToLocalStorage();
+  pendingMap[key] = { ...(homeworkMap[key] || {}) };
   saveHistory({
     key,
     data: homeworkMap[key],

@@ -107,15 +107,7 @@ function resolveKey(cmd) {
   return getKey({ grade, classNum, hw });
 }
 
-function syncState(state, cmd, key) {
-  state.grade = cmd.grade ?? state.grade;
-  state.classNum = cmd.classNum ?? state.classNum;
-  state.hw = cmd.hw ?? state.hw;   // ← これが欠落してる
 
-  if (key && Array.isArray(cmd.nums)) {
-    cmd.nums.forEach(n => state.submitted.add(Number(n)));
-  }
-}
 
 function extractNewPart(raw, last) {
   if (!last) {
@@ -416,7 +408,7 @@ console.log("STATE:", state);
   if (cmd.type === "submit") {
     saveLock = false;
     submit(key, cmd.nums);
-    syncState(state, cmd, key, getNumbers);
+    state = reduceState(state, cmd);
     safeRender(state);
     return;
   }
@@ -424,7 +416,7 @@ console.log("STATE:", state);
   if (cmd.type === "add") {
     saveLock = false;
     add(key, cmd.nums);
-    syncState(state, cmd, key, getNumbers);
+    state = reduceState(state, cmd);
     safeRender(state);
     return;
   }
@@ -432,8 +424,8 @@ console.log("STATE:", state);
   if (cmd.type === "delete") {
     saveLock = false;
     remove(key, cmd.nums);
-    syncState(state, cmd, key, getNumbers);
-   safeRender(state);
+    state = reduceState(state, cmd);
+    safeRender(state);
     return;
   }
 
@@ -442,7 +434,7 @@ console.log("STATE:", state);
   }
 
   saveLock = false;
-  syncState(state, cmd, key, getNumbers);
+  state = reduceState(state, cmd);
   safeRender(state);
 }
 
@@ -491,7 +483,7 @@ saveBtn?.addEventListener("click", async () => {
   console.log("STATE:", state);
 
 // state更新は常に実行
-syncState(state, cmd, key, getNumbers);
+state = reduceState(state, cmd);
 
 if (!key) {
   console.log("WARN: key is null but state updated");
@@ -693,3 +685,13 @@ function render(state) {
 setSpeechHandler(handleInput);
 
 textarea.focus();
+
+function reduceState(prevState, cmd) {
+  return {
+    ...prevState,
+    grade: cmd.grade ?? prevState.grade,
+    classNum: cmd.classNum ?? prevState.classNum,
+    hw: cmd.hw ?? prevState.hw,
+    submitted: prevState.submitted
+  };
+}
