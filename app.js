@@ -110,14 +110,11 @@ function resolveKey(cmd) {
 function syncState(state, cmd, key) {
   state.grade = cmd.grade ?? state.grade;
   state.classNum = cmd.classNum ?? state.classNum;
-  state.hw = cmd.hw ?? state.hw;
+  state.hw = cmd.hw ?? state.hw;   // ← これが欠落してる
 
-  // submit以外は「追加しない」だけ
-  if (cmd.type !== "submit") return;
-
-  if (!cmd.nums || cmd.nums.length === 0) return;
-
-  cmd.nums.forEach(n => state.submitted.add(Number(n)));
+  if (key && Array.isArray(cmd.nums)) {
+    cmd.nums.forEach(n => state.submitted.add(Number(n)));
+  }
 }
 
 function extractNewPart(raw, last) {
@@ -357,20 +354,14 @@ if (valueBefore !== processed) {
   lastProcessedText = text;
 
 const cmd = parseCommand(text);
-console.log("CMD DEBUG:", cmd);
 const key = resolveKey(cmd);
 
-// ① noopは即終了（ログ出さない）
-if (!cmd || cmd.type === "noop") return;
-
-
-
-// ③ 必要なときだけログ
 console.log("CMD:", cmd);
 console.log("KEY:", key);
 console.log("STATE:", state);
 
-logDebugCommand(cmd, getDebugKey(cmd, key));
+  logDebugCommand(cmd, getDebugKey(cmd, key));
+
   if (cmd.type === "noop") {
     return;
   }
@@ -492,30 +483,12 @@ saveBtn?.addEventListener("click", async () => {
   const text = textarea.value.trim();
   if (!text) return;
 
- const cmd = parseCommand(text);
- console.log("CMD DEBUG:", cmd);
-const key = resolveKey(cmd);
+  const cmd = parseCommand(text);
+  const key = resolveKey(cmd);
 
-
-// ✅ ここに追加
-if (cmd.type === "submit" && (!cmd.nums || cmd.nums.length === 0)) {
-  return;
-}
-
-
-// noop無視
-if (!cmd || cmd.type === "noop") return;
-
-// studentSummary以外はkey必須
-if (cmd.type !== "studentSummary" && !key) {
-  console.log("WARN: key is null → skip");
-  return;
-}
-
-// ログは必要時のみ
-console.log("CMD:", cmd);
-console.log("KEY:", key);
-console.log("STATE:", state);
+  console.log("CMD:", cmd);
+  console.log("KEY:", key);
+  console.log("STATE:", state);
 
 // state更新は常に実行
 syncState(state, cmd, key, getNumbers);
@@ -715,17 +688,7 @@ function getCurrentKey() {
 function render(state) {
   renderState(state);
   renderMetaControls();
-
-  const listEl = document.getElementById("list");
-
-  // grade / classNum が不正なら描画せずクリア
-if (state.grade == null || state.classNum == null) {
-  const listEl = document.getElementById("list");
-  if (listEl) listEl.innerHTML = "";
-  return;
-}
-
-  renderList(state);
+  renderList(null); // state使うな
 }
 setSpeechHandler(handleInput);
 
