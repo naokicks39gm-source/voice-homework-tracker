@@ -698,6 +698,7 @@ function render(state) {
   renderState(state);
   renderMetaControls();
   renderList(state);
+  renderHistory(); // ←これ絶対必要
   if (currentSummary) {
     renderStudentSummaryTable(currentSummary);
   }
