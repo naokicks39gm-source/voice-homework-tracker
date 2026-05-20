@@ -302,7 +302,8 @@ async function loadFirebaseBackupModule() {
   return import("./firebaseBackup.js?v=20260508-student-public-01");
 }
 
-export function handleInput(text) {
+export function handleInput(text, isInputEvent = false) {
+  console.log("handleInput", text);
   const rawText = String(text || "");
 
   if (rawText === "__RESET_DONE__") {
@@ -322,7 +323,7 @@ export function handleInput(text) {
 
 
 
-  text = processed;
+
 const valueBefore = textarea.value;
 textarea.value = processed;
 
@@ -405,12 +406,23 @@ console.log("STATE:", state);
     return;
   }
 
-  if (cmd.type === "submit") {
-    saveLock = false;
-    submit(key, cmd.nums);
-    state = reduceState(state, cmd);
-    safeRender(state);
-    return;
+ if (cmd.type === 'submit') {
+
+    // ★ state更新（これはOKになった）
+    state.grade = cmd.grade;
+    state.classNum = cmd.classNum;
+    state.hw = cmd.hw;
+
+    console.log('STATE UPDATED:', state);
+
+    // ★ 入力時は送信しない
+    if (isInputEvent) {
+      console.log('SKIP_SUBMIT_IN_INPUT');
+      return;
+    }
+
+    // ★ 保存時だけ送信
+    doSubmit(cmd);
   }
 
   if (cmd.type === "add") {
@@ -437,37 +449,31 @@ console.log("STATE:", state);
   state = reduceState(state, cmd);
   safeRender(state);
 }
+let inputTimer = null;
+let lastKeyProcessed = null;
 
 textarea.addEventListener("input", () => {
-  if (state.isLocked) {
-    return;
-  }
+  clearTimeout(inputTimer);
 
-  const raw = textarea.value.trim();
-  let processed = raw;
-  if (lastSavedText && raw.indexOf(lastSavedText) !== -1) {
-    processed = extractNewPart(raw, lastSavedText);
-    textarea.value = processed;
+  inputTimer = setTimeout(() => {
+    const processed = normalizeText(textarea.value);
+    if (!processed) return;
 
-    if (!processed) {
-      return;
-    }
-  }
+    // 確定ワードだけ
+    if (!processed.includes("提出")) return;
 
-  const value = processed.trim();
-  if (value && value === lastProcessedText) {
-    return;
-  }
+    const cmd = parseCommand(processed);
+    const key = resolveKey(cmd);
 
-  const line = normalizeText(getLastLine(processed));
+    if (!key) return;
+    if (key === lastKeyProcessed) return;
 
-  if (line === state.lastProcessedLine) {
-    return;
-  }
+    processInput(processed);
 
-  state.lastProcessedLine = line;
-  handleInput(processed);
+    lastKeyProcessed = key;
+  }, 500);
 });
+
 
 saveBtn?.addEventListener("click", async () => {
   console.log("SAVE_CLICKED");
@@ -482,8 +488,6 @@ saveBtn?.addEventListener("click", async () => {
   console.log("KEY:", key);
   console.log("STATE:", state);
 
-// state更新は常に実行
-state = reduceState(state, cmd);
 
 if (!key) {
   console.log("WARN: key is null but state updated");
@@ -491,7 +495,7 @@ if (!key) {
 
   // ① ローカル反映はここ（必要）
   if (cmd.type !== "delete" && cmd.nums?.length) {
-    add(key, cmd.nums);
+
   }
 
   commit(key);
@@ -676,6 +680,7 @@ function getCurrentKey() {
 }
 
 function render(state) {
+    console.log("render");
   renderState(state);
   renderMetaControls();
   renderList(state);
@@ -697,4 +702,10 @@ function reduceState(prevState, cmd) {
     submitted: prevState.submitted
   };
 }
+function processInput(text) {
+  handleInput(text);
+}
 
+function doSubmit(cmd) {
+console.log("SUBMIT:", cmd);
+}

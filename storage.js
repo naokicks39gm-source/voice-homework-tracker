@@ -110,6 +110,7 @@ function saveHistory(entry) {
 }
 
 export function add(key, nums) {
+   console.log("add", key, nums); 
   if (!pendingMap[key]) {
     pendingMap[key] = {};
   }
@@ -140,6 +141,7 @@ export function submit(key, nums) {
 }
 
 export function commit(key) {
+   console.log("commit", key); 
   homeworkMap[key] = { ...(pendingMap[key] || {}) };
   saveToLocalStorage();
   pendingMap[key] = { ...(homeworkMap[key] || {}) };
