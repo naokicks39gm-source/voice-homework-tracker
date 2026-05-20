@@ -389,18 +389,24 @@ export function handleInput(text, isInputEvent = false) {
   if (!key) return;
 
   // ===== submit =====
-  if (cmd.type === "submit") {
-    console.log("SUBMIT DEBUG NUMS:", cmd.nums);
+ if (cmd.type === "submit") {
+  console.log("SUBMIT DEBUG NUMS:", cmd.nums);
 
   state.grade = cmd.grade;
   state.classNum = cmd.classNum;
   state.hw = cmd.hw;
 
-  console.log("STATE UPDATED:", state);
+  console.log("STATE BEFORE SUBMITTED:", [...state.submitted]);
 
- if (cmd.nums && cmd.nums.length) {
-    cmd.nums.forEach(n => state.submitted.add(n));
-  }
+  const next = new Set(state.submitted);
+
+if (cmd.nums?.length) {
+  cmd.nums.forEach(n => next.add(n));
+}
+
+state.submitted = next;
+
+  console.log("STATE AFTER SUBMITTED:", [...state.submitted]);
 
   if (isInputEvent) {
     console.log("SKIP_SUBMIT_IN_INPUT");
@@ -687,6 +693,7 @@ function getCurrentKey() {
 }
 
 function render(state) {
+   console.log("RENDER STATE:", [...state.submitted]);
     console.log("render");
   renderState(state);
   renderMetaControls();
@@ -706,9 +713,10 @@ function reduceState(prevState, cmd) {
     grade: cmd.grade ?? prevState.grade,
     classNum: cmd.classNum ?? prevState.classNum,
     hw: cmd.hw ?? prevState.hw,
-    submitted: prevState.submitted
+    submitted: new Set(prevState.submitted) // ←これに変更
   };
 }
+
 function processInput(text) {
   handleInput(text);
 }
