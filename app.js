@@ -19,7 +19,6 @@ function createInitialState() {
     grade: null,
     classNum: null,
     hw: null,
-    submitted: new Set(),
     isLocked: false,
     lastProcessedLine: ""
   };
@@ -244,7 +243,6 @@ function buildCsvText(rows, context) {
       row.student,
       (row.submitted || []).join(","),
       (row.missing || []).join(","),
-      `${row.submittedCount}/${row.totalHw}（${row.rate}%）`
     ].map(escapeCsvValue).join(","));
 
     return [header.join(","), ...lines].join("\r\n");
@@ -392,38 +390,29 @@ export function handleInput(text, isInputEvent = false) {
 if (cmd.type === "submit") {
   console.log("SUBMIT DEBUG NUMS:", cmd.nums);
 
-  // stateの更新（順序固定）
+  // UI stateのみ更新（データは触らない）
   state = {
     ...state,
     grade: cmd.grade,
     classNum: cmd.classNum,
     hw: cmd.hw,
-    submitted: new Set(state.submitted || [])
   };
-
-  console.log("STATE BEFORE SUBMITTED:", [...state.submitted]);
 
   const nums = Array.isArray(cmd.nums) ? cmd.nums : [];
 
-  const next = new Set(state.submitted);
+  // ★ここが重要：stateではなくstorageへ
+  const key = getKey(cmd);
 
-  nums.forEach(n => {
-    const num = Number(n);
-    if (Number.isFinite(num)) {
-      next.add(num);
-    }
-  });
-
-  state.submitted = next;
-
-  console.log("STATE AFTER SUBMITTED:", [...state.submitted]);
+  if (nums.length) {
+    add(key, nums);
+  }
 
   if (isInputEvent) {
     console.log("SKIP_SUBMIT_IN_INPUT");
     return;
   }
 
-  safeRender(state); // ←ここ重要（状態変化後の再描画保証）
+  safeRender(state); // UI再描画
   doSubmit(cmd);
   return;
 }
@@ -433,13 +422,8 @@ if (cmd.type === "add") {
 
   add(key, cmd.nums);
 
-  if (!state.submitted) {
-    state.submitted = new Set();
-  }
-
-  cmd.nums?.forEach(n => state.submitted.add(n));
-
-  state = reduceState(state, cmd);
+  
+ state = reduceState(state, cmd);
   safeRender(state);
   return;
 }
@@ -450,13 +434,7 @@ if (cmd.type === "delete") {
 
   remove(key, cmd.nums);
 
-  if (!state.submitted) {
-    state.submitted = new Set();
-  }
-
-  cmd.nums?.forEach(n => state.submitted.delete(n));
-
-  state = reduceState(state, cmd);
+ state = reduceState(state, cmd);
   safeRender(state);
   return;
 }
@@ -536,9 +514,7 @@ try {
     {
       student: cmd.nums?.[0] || 1,
       rate: 0,
-      submitted: new Set(cmd.nums || []),
       missing: [],
-      submittedCount: cmd.nums?.length || 0,
       totalHw: 1
     }
   ];
@@ -704,7 +680,6 @@ function getCurrentKey() {
 }
 
 function render(state) {
-   console.log("RENDER STATE:", [...state.submitted]);
     console.log("render");
   renderState(state);
   renderMetaControls();
@@ -719,14 +694,6 @@ setSpeechHandler(handleInput);
 
 focusTextarea();
 
-function reduceState(prevState, cmd) {
-  return {
-    ...prevState,
-    grade: cmd.grade ?? prevState.grade,
-    classNum: cmd.classNum ?? prevState.classNum,
-    hw: cmd.hw ?? prevState.hw,
-  };
-}
 
 function processInput(text) {
   handleInput(text);
@@ -738,8 +705,7 @@ const payload = {
   grade: state.grade,
   classNum: state.classNum,
   hw: state.hw,
-  submitted: Array.from(state.submitted)
-};
+ };
 }
 function focusTextarea() {
   requestAnimationFrame(() => {

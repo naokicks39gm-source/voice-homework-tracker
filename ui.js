@@ -1,12 +1,22 @@
-import { get } from "./storage.js";
+import { getNumbers } from "./storage.js";
+import { getKey } from "./storage.js";
 
+/**
+ * stateはUI入力専用
+ * submitted系はstorageからのみ取得
+ */
+
+// =========================
+// renderState
+// =========================
 export function renderState(state) {
-  const submitted = [...(state.submitted || [])].sort((a, b) => a - b);
-  const stateView = document.getElementById("state");
+  const el = document.getElementById("state");
+  if (!el) return;
 
-  if (!stateView) return;
+  const key = getKey(state);
+  const submitted = getNumbers(key);
 
-  stateView.innerHTML = `
+  el.innerHTML = `
     <div>grade: ${state.grade ?? "-"}</div>
     <div>class: ${state.classNum ?? "-"}</div>
     <div>homeworkNo: ${state.hw ?? "-"}</div>
@@ -14,13 +24,14 @@ export function renderState(state) {
   `;
 }
 
+
+// =========================
+// renderList
+// =========================
 export function renderList(state) {
- if (!state || state.grade == null || state.classNum == null) {
-    return;
-  }
+  if (!state || state.grade == null || state.classNum == null) return;
 
   const keyPrefix = `${state.grade}-${state.classNum}`;
-
   const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
 
   const filtered = history.filter(h => h.key.startsWith(keyPrefix));
@@ -32,10 +43,15 @@ export function renderList(state) {
 
   filtered.forEach(item => {
     const div = document.createElement("div");
-    div.textContent = `${item.key}`;
+    div.textContent = item.key;
     el.appendChild(div);
   });
 }
+
+
+// =========================
+// renderHistory
+// =========================
 export function renderHistory() {
   const el = document.getElementById("history");
   if (!el) return;
@@ -49,16 +65,21 @@ export function renderHistory() {
 
     const nums = Array.isArray(item.nums)
       ? item.nums
-      : Object.keys(item.data || {})
-          .map(Number)
-          .filter(Number.isFinite)
-          .sort((a, b) => a - b);
+      : getNumbers(item.key);
 
     div.textContent = `${item.key} : ${nums.length ? nums.join("番 ") : "-"}`;
+
     el.appendChild(div);
   });
 }
+
+
+// =========================
+// chunk
+// =========================
 function chunk(values, size = 10) {
+  if (!Array.isArray(values)) return "-";
+
   const result = [];
   for (let i = 0; i < values.length; i += size) {
     result.push(values.slice(i, i + size).join(", "));
@@ -66,11 +87,13 @@ function chunk(values, size = 10) {
   return result.join("<br>");
 }
 
+
+// =========================
+// renderSummaryTable
+// =========================
 export function renderSummaryTable(rows) {
   const container = document.getElementById("summary");
-  if (!container) {
-    return;
-  }
+  if (!container) return;
 
   container.innerHTML = "";
 
@@ -78,22 +101,27 @@ export function renderSummaryTable(rows) {
   table.innerHTML = "<tr><th>宿題</th><th>提出</th></tr>";
 
   rows.forEach((row) => {
+    const submitted = getNumbers(row.key);
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.hw}</td>
-      <td class="submitted">${chunk(row.submitted)}</td>
+      <td class="submitted">${submitted.length ? submitted.join(", ") : "-"}</td>
     `;
+
     table.appendChild(tr);
   });
 
   container.appendChild(table);
 }
 
+
+// =========================
+// renderStudentSummaryTable
+// =========================
 export function renderStudentSummaryTable(rows) {
   const container = document.getElementById("summary");
-  if (!container) {
-    return;
-  }
+  if (!container) return;
 
   container.innerHTML = "";
 
@@ -108,19 +136,26 @@ export function renderStudentSummaryTable(rows) {
   `;
 
   rows.forEach((row) => {
+    const submitted = getNumbers(row.key);
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.student}</td>
-      <td class="submitted">${row.submitted.length ? chunk(row.submitted) : "-"}</td>
-      <td class="missing">${row.missing.length ? chunk(row.missing) : "-"}</td>
-      <td>${row.submittedCount}/${row.totalHw}（${row.rate}%）</td>
+      <td class="submitted">${submitted.length ? submitted.join(", ") : "-"}</td>
+      <td class="missing">${row.missing?.length ? row.missing.join(", ") : "-"}</td>
+      <td>${submitted.length}/${row.totalHw}（${row.rate}%）</td>
     `;
+
     table.appendChild(tr);
   });
 
   container.appendChild(table);
 }
 
+
+// =========================
+// downloadCsv
+// =========================
 export function downloadCsv(filename, text) {
   const blob = new Blob(["\ufeff" + text], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -131,11 +166,15 @@ export function downloadCsv(filename, text) {
 
   document.body.appendChild(a);
   a.click();
-
   document.body.removeChild(a);
+
   URL.revokeObjectURL(url);
 }
 
+
+// =========================
+// downloadHtml
+// =========================
 export function downloadHtml(filename, htmlText) {
   const blob = new Blob([htmlText], { type: "text/html;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -146,7 +185,7 @@ export function downloadHtml(filename, htmlText) {
 
   document.body.appendChild(a);
   a.click();
-
   document.body.removeChild(a);
+
   URL.revokeObjectURL(url);
 }

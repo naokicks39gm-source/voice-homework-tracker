@@ -47,9 +47,7 @@ function migrateLegacyData() {
 
   const next = {};
   parsed.forEach((item) => {
-    if (!item || !Array.isArray(item.submitted)) {
-      return;
-    }
+    
 
     const fallback = legacyKeyToCommand(item.key);
     const grade = item.grade ?? fallback?.grade;
@@ -62,9 +60,7 @@ function migrateLegacyData() {
 
     const key = getKey({ grade, classNum, hw });
     next[key] = {};
-    normalizeNums(item.submitted).forEach((n) => {
-      next[key][n] = true;
-    });
+    
   });
 
   return next;
