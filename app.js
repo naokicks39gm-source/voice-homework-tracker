@@ -388,32 +388,20 @@ export function handleInput(text, isInputEvent = false) {
 
  // ===== submit =====
 if (cmd.type === "submit") {
-  console.log("SUBMIT DEBUG NUMS:", cmd.nums);
+  const safe = normalizeCmd(cmd, state);
 
-  // UI stateのみ更新（データは触らない）
   state = {
     ...state,
-    grade: cmd.grade,
-    classNum: cmd.classNum,
-    hw: cmd.hw,
+    grade: safe.grade,
+    classNum: safe.classNum,
+    hw: safe.hw,
   };
 
-  const nums = Array.isArray(cmd.nums) ? cmd.nums : [];
+  const key = getKey(state);
 
-  // ★ここが重要：stateではなくstorageへ
-  const key = getKey(cmd);
+  submit(key, safe.nums);
 
-  if (nums.length) {
-    add(key, nums);
-  }
-
-  if (isInputEvent) {
-    console.log("SKIP_SUBMIT_IN_INPUT");
-    return;
-  }
-
-  safeRender(state); // UI再描画
-  doSubmit(cmd);
+  safeRender(state);
   return;
 }
 // ===== add =====
@@ -423,7 +411,12 @@ if (cmd.type === "add") {
   add(key, cmd.nums);
 
   
- state = reduceState(state, cmd);
+ state = {
+  ...state,
+  grade: Number.isFinite(cmd.grade) ? cmd.grade : state.grade,
+  classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : state.classNum,
+  hw: Number.isFinite(cmd.hw) ? cmd.hw : state.hw,
+};
   safeRender(state);
   return;
 }
@@ -434,7 +427,12 @@ if (cmd.type === "delete") {
 
   remove(key, cmd.nums);
 
- state = reduceState(state, cmd);
+  state = {
+    ...state,
+    grade: Number.isFinite(cmd.grade) ? cmd.grade : state.grade,
+    classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : state.classNum,
+    hw: Number.isFinite(cmd.hw) ? cmd.hw : state.hw,
+  };
   safeRender(state);
   return;
 }
@@ -444,7 +442,12 @@ if (cmd.type === "save") return;
 
 // ===== その他 =====
 saveLock = false;
-state = reduceState(state, cmd);
+state = {
+  ...state,
+  grade: Number.isFinite(cmd.grade) ? cmd.grade : state.grade,
+  classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : state.classNum,
+  hw: Number.isFinite(cmd.hw) ? cmd.hw : state.hw,
+};
 safeRender(state);
 
 }
@@ -505,10 +508,12 @@ if (!key) {
   // ② Firestore（ここはOK）
 // ② Firestore（修正版）
 try {
-  const context = {
-    grade: state.grade,
-    classNum: state.classNum
-  };
+const safe = normalizeCmd(cmd, state);
+
+const context = {
+  grade: safe.grade,
+  classNum: safe.classNum
+};
 
   const rows = [
     {
@@ -669,7 +674,10 @@ window.onload = () => {
 
 
 function initApp() {
-  loadFromLocalStorage(state); // ←これに変更
+  state = {
+  ...state,
+  ...loadFromLocalStorage()
+}; // ←これに変更
   startSpeech();
   safeRender(state);
 }
@@ -700,12 +708,15 @@ function processInput(text) {
 }
 
 function doSubmit(cmd) {
-console.log("SUBMIT:", cmd);
-const payload = {
-  grade: state.grade,
-  classNum: state.classNum,
-  hw: state.hw,
- };
+  const safe = normalizeCmd(cmd, state);
+
+  const payload = {
+    grade: safe.grade,
+    classNum: safe.classNum,
+    hw: safe.hw,
+  };
+
+  console.log("SUBMIT PAYLOAD:", payload);
 }
 function focusTextarea() {
   requestAnimationFrame(() => {
@@ -713,4 +724,12 @@ function focusTextarea() {
       textarea.focus();
     }
   });
+}
+function normalizeCmd(cmd, prevState) {
+  return {
+    grade: Number.isFinite(cmd.grade) ? cmd.grade : prevState.grade,
+    classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : prevState.classNum,
+    hw: Number.isFinite(cmd.hw) ? cmd.hw : prevState.hw,
+    nums: Array.isArray(cmd.nums) ? cmd.nums : []
+  };
 }
