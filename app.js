@@ -154,7 +154,7 @@ function resetRuntimeMemory() {
 function resetTextInputOnly() {
   resetInput({ resetGuards: true });
   resetSpeechMemory();
-  textarea.focus();
+  focusTextarea()
 }
 
 function escapeCsvValue(value) {
@@ -304,69 +304,55 @@ async function loadFirebaseBackupModule() {
 
 export function handleInput(text, isInputEvent = false) {
   console.log("handleInput", text);
+
   const rawText = String(text || "");
+  if (rawText === "__RESET_DONE__") return;
 
-  if (rawText === "__RESET_DONE__") {
-    return;
-  }
+  // 前処理
+  let processed = rawText.trim().replace(/^リセット[。、「」\s]*/, "");
 
-  let processed = rawText.trim();
-  processed = processed.replace(/^リセット[。、「」\s]*/, "");
-
-  if (lastSavedText && processed.indexOf(lastSavedText) !== -1) {
+  if (lastSavedText && processed.includes(lastSavedText)) {
     processed = extractNewPart(processed, lastSavedText);
   }
 
-  if (!processed) {
-    return;
+  if (!processed) return;
+
+  // textarea更新（無駄代入防止）
+  if (textarea.value !== processed) {
+    textarea.value = processed;
   }
 
-
-
-
-const valueBefore = textarea.value;
-textarea.value = processed;
-
-// 同一なら無駄更新しない
-if (valueBefore !== processed) {
-  textarea.value = processed;
-}
-
-  const normalizedText = normalizeText(text);
-  const rawSaveIndex = text.indexOf("保存");
+  // 保存ワードまで切り出し
+  const normalizedText = normalizeText(processed);
+  const rawSaveIndex = processed.indexOf("保存");
   const normalizedSaveIndex = normalizedText.indexOf("保存");
-  const saveIndex = rawSaveIndex !== -1 ? rawSaveIndex : normalizedSaveIndex;
-  if (saveIndex !== -1) {
-    text = (rawSaveIndex !== -1 ? text : normalizedText).slice(0, saveIndex + 2);
+
+  if (rawSaveIndex !== -1 || normalizedSaveIndex !== -1) {
+    const base = rawSaveIndex !== -1 ? processed : normalizedText;
+    processed = base.slice(0, (rawSaveIndex !== -1 ? rawSaveIndex : normalizedSaveIndex) + 2);
   }
 
-  if (text && text === lastProcessedText) {
-    return;
-  }
+  // 重複処理防止
+  if (processed === lastProcessedText) return;
+  lastProcessedText = processed;
 
-  lastProcessedText = text;
+  // コマンド解析
+  const cmd = parseCommand(processed);
+  const key = resolveKey(cmd);
 
-const cmd = parseCommand(text);
-const key = resolveKey(cmd);
-
-console.log("CMD:", cmd);
-console.log("KEY:", key);
-console.log("STATE:", state);
+  console.log("CMD:", cmd);
+  console.log("KEY:", key);
+  console.log("STATE:", state);
 
   logDebugCommand(cmd, getDebugKey(cmd, key));
 
-  if (cmd.type === "noop") {
-    return;
-  }
+  if (cmd.type === "noop") return;
 
+  // ===== サマリー系 =====
   if (cmd.type === "studentSummary") {
     const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
-    const rows = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size);
-    currentSummary = rows;
-    currentSummaryContext = {
-      grade: cmd.grade,
-      classNum: cmd.classNum
-    };
+    currentSummary = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size);
+    currentSummaryContext = { grade: cmd.grade, classNum: cmd.classNum };
     safeRender(state);
     return;
   }
@@ -374,6 +360,7 @@ console.log("STATE:", state);
   if (cmd.type === "summary") {
     const grade = cmd.grade ?? state.grade;
     const classNum = cmd.classNum ?? state.classNum;
+
     if (!grade || !classNum || !cmd.size) {
       currentSummary = [];
       currentSummaryContext = null;
@@ -382,49 +369,43 @@ console.log("STATE:", state);
     }
 
     const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
-    const rows = buildSummary(history, grade, classNum, cmd.size);
-    currentSummary = rows;
-    currentSummaryContext = {
-      grade,
-      classNum
-    };
+    currentSummary = buildSummary(history, grade, classNum, cmd.size);
+    currentSummaryContext = { grade, classNum };
     safeRender(state);
     return;
   }
 
+  // ===== save異常 =====
   if (cmd.type === "save" && !key) {
-    console.log("DEBUG_SKIP_INVALID_SAVE", JSON.stringify({ text }));
+    console.log("DEBUG_SKIP_INVALID_SAVE", JSON.stringify({ processed }));
     keepInputReset();
     resetSpeechMemory();
     safeRender(state);
-  
     return;
   }
 
-  if (!key) {
+  if (!key) return;
 
-    return;
-  }
-
- if (cmd.type === 'submit') {
-
-    // ★ state更新（これはOKになった）
+  // ===== submit =====
+  if (cmd.type === "submit") {
     state.grade = cmd.grade;
     state.classNum = cmd.classNum;
     state.hw = cmd.hw;
 
-    console.log('STATE UPDATED:', state);
+    console.log("STATE UPDATED:", state);
 
-    // ★ 入力時は送信しない
     if (isInputEvent) {
-      console.log('SKIP_SUBMIT_IN_INPUT');
+      console.log("SKIP_SUBMIT_IN_INPUT");
       return;
     }
-
-    // ★ 保存時だけ送信
+ // ★ saveクリック時だけ通す
+  if (!isInputEvent) {
     doSubmit(cmd);
   }
+    return;
+  }
 
+  // ===== add =====
   if (cmd.type === "add") {
     saveLock = false;
     add(key, cmd.nums);
@@ -433,6 +414,7 @@ console.log("STATE:", state);
     return;
   }
 
+  // ===== delete =====
   if (cmd.type === "delete") {
     saveLock = false;
     remove(key, cmd.nums);
@@ -441,10 +423,10 @@ console.log("STATE:", state);
     return;
   }
 
-  if (cmd.type === "save") {
-    return;
-  }
+  // ===== save（何もしない）=====
+  if (cmd.type === "save") return;
 
+  // ===== その他 =====
   saveLock = false;
   state = reduceState(state, cmd);
   safeRender(state);
@@ -482,6 +464,10 @@ saveBtn?.addEventListener("click", async () => {
   if (!text) return;
 
   const cmd = parseCommand(text);
+  if (cmd.type === "submit") {
+  console.log("SKIP_SUBMIT_ON_SAVE_CLICK");
+  return;
+}
   const key = resolveKey(cmd);
 
   console.log("CMD:", cmd);
@@ -649,7 +635,7 @@ textarea.addEventListener("blur", () => {
     return;
   }
 
-  setTimeout(() => textarea.focus(), 0);
+  setTimeout(() => focusTextarea(), 0);
 });
 
 setInterval(() => {
@@ -658,7 +644,7 @@ setInterval(() => {
   }
 
   if (document.activeElement !== textarea) {
-    textarea.focus();
+    focusTextarea();
   }
 }, 3000);
 
@@ -691,7 +677,7 @@ function render(state) {
 }
 setSpeechHandler(handleInput);
 
-textarea.focus();
+focusTextarea();
 
 function reduceState(prevState, cmd) {
   return {
@@ -708,4 +694,11 @@ function processInput(text) {
 
 function doSubmit(cmd) {
 console.log("SUBMIT:", cmd);
+}
+function focusTextarea() {
+  requestAnimationFrame(() => {
+    if (document.activeElement !== textarea) {
+      textarea.focus();
+    }
+  });
 }
