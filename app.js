@@ -366,7 +366,7 @@ console.log("STATE:", state);
       grade: cmd.grade,
       classNum: cmd.classNum
     };
-    renderStudentSummaryTable(rows);
+    safeRender(state);
     return;
   }
 
@@ -376,7 +376,7 @@ console.log("STATE:", state);
     if (!grade || !classNum || !cmd.size) {
       currentSummary = [];
       currentSummaryContext = null;
-      renderSummaryTable([]);
+      safeRender(state);
       return;
     }
 
@@ -387,7 +387,7 @@ console.log("STATE:", state);
       grade,
       classNum
     };
-    renderSummaryTable(rows);
+    safeRender(state);
     return;
   }
 
@@ -395,7 +395,7 @@ console.log("STATE:", state);
     console.log("DEBUG_SKIP_INVALID_SAVE", JSON.stringify({ text }));
     keepInputReset();
     resetSpeechMemory();
-    renderHistory();
+    safeRender(state);
   
     return;
   }
@@ -528,7 +528,6 @@ try {
 
   keepInputReset();
   resetSpeechMemory();
-  renderHistory();
   safeRender(state);
 });
 
@@ -546,10 +545,9 @@ clearAllDataBtn?.addEventListener("click", () => {
   resetRuntimeMemory();
   resetInput();
   resetSpeechMemory();
-  renderHistory();
   currentSummary = null;
   currentSummaryContext = null;
-  renderSummaryTable([]);
+  safeRender(state);
 });
 
 exportCsvBtn.addEventListener("click", () => {
@@ -680,7 +678,11 @@ function getCurrentKey() {
 function render(state) {
   renderState(state);
   renderMetaControls();
-  renderList(null); // state使うな
+  renderList(state);
+  if (currentSummary) {
+    renderStudentSummaryTable(currentSummary);
+  }
+
 }
 setSpeechHandler(handleInput);
 
@@ -695,3 +697,4 @@ function reduceState(prevState, cmd) {
     submitted: prevState.submitted
   };
 }
+
