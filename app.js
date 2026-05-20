@@ -388,23 +388,33 @@ export function handleInput(text, isInputEvent = false) {
 
   if (!key) return;
 
-  // ===== submit =====
- if (cmd.type === "submit") {
+ // ===== submit =====
+if (cmd.type === "submit") {
   console.log("SUBMIT DEBUG NUMS:", cmd.nums);
 
-  state.grade = cmd.grade;
-  state.classNum = cmd.classNum;
-  state.hw = cmd.hw;
+  // stateの更新（順序固定）
+  state = {
+    ...state,
+    grade: cmd.grade,
+    classNum: cmd.classNum,
+    hw: cmd.hw,
+    submitted: new Set(state.submitted || [])
+  };
 
   console.log("STATE BEFORE SUBMITTED:", [...state.submitted]);
 
+  const nums = Array.isArray(cmd.nums) ? cmd.nums : [];
+
   const next = new Set(state.submitted);
 
-if (cmd.nums?.length) {
-  cmd.nums.forEach(n => next.add(n));
-}
+  nums.forEach(n => {
+    const num = Number(n);
+    if (Number.isFinite(num)) {
+      next.add(num);
+    }
+  });
 
-state.submitted = next;
+  state.submitted = next;
 
   console.log("STATE AFTER SUBMITTED:", [...state.submitted]);
 
@@ -413,6 +423,7 @@ state.submitted = next;
     return;
   }
 
+  safeRender(state); // ←ここ重要（状態変化後の再描画保証）
   doSubmit(cmd);
   return;
 }
@@ -714,7 +725,6 @@ function reduceState(prevState, cmd) {
     grade: cmd.grade ?? prevState.grade,
     classNum: cmd.classNum ?? prevState.classNum,
     hw: cmd.hw ?? prevState.hw,
-    submitted: new Set(prevState.submitted) // ←これに変更
   };
 }
 

@@ -145,11 +145,11 @@ export function commit(key) {
   homeworkMap[key] = { ...(pendingMap[key] || {}) };
   saveToLocalStorage();
   pendingMap[key] = { ...(homeworkMap[key] || {}) };
-  saveHistory({
-    key,
-    data: homeworkMap[key],
-    timestamp: Date.now()
-  });
+saveHistory({
+  key,
+  nums: normalizeNums(Object.keys(homeworkMap[key] || {})),
+  timestamp: Date.now()
+});
 }
 
 export function get(key) {

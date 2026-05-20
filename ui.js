@@ -38,9 +38,7 @@ export function renderList(state) {
 }
 export function renderHistory() {
   const el = document.getElementById("history");
-  if (!el) {
-    return;
-  }
+  if (!el) return;
 
   el.innerHTML = "";
 
@@ -48,17 +46,18 @@ export function renderHistory() {
 
   history.slice().reverse().forEach((item) => {
     const div = document.createElement("div");
-    const nums = Object.keys(item.data || {})
-      .map(Number)
-      .sort((a, b) => a - b)
-      .map((n) => `${n}番`)
-      .join(", ");
 
-    div.textContent = `${item.key} : ${nums || "-"}`;
+    const nums = Array.isArray(item.nums)
+      ? item.nums
+      : Object.keys(item.data || {})
+          .map(Number)
+          .filter(Number.isFinite)
+          .sort((a, b) => a - b);
+
+    div.textContent = `${item.key} : ${nums.length ? nums.join("番 ") : "-"}`;
     el.appendChild(div);
   });
 }
-
 function chunk(values, size = 10) {
   const result = [];
   for (let i = 0; i < values.length; i += size) {
