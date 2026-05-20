@@ -338,6 +338,8 @@ export function handleInput(text, isInputEvent = false) {
 
   // コマンド解析
   const cmd = parseCommand(processed);
+  console.log("DEBUG CMD:", cmd);
+  console.log("DEBUG NUMS:", cmd.nums);
   const key = resolveKey(cmd);
 
   console.log("CMD:", cmd);
@@ -388,48 +390,68 @@ export function handleInput(text, isInputEvent = false) {
 
   // ===== submit =====
   if (cmd.type === "submit") {
-    state.grade = cmd.grade;
-    state.classNum = cmd.classNum;
-    state.hw = cmd.hw;
+    console.log("SUBMIT DEBUG NUMS:", cmd.nums);
 
-    console.log("STATE UPDATED:", state);
+  state.grade = cmd.grade;
+  state.classNum = cmd.classNum;
+  state.hw = cmd.hw;
 
-    if (isInputEvent) {
-      console.log("SKIP_SUBMIT_IN_INPUT");
-      return;
-    }
- // ★ saveクリック時だけ通す
-  if (!isInputEvent) {
-    doSubmit(cmd);
+  console.log("STATE UPDATED:", state);
+
+ if (cmd.nums && cmd.nums.length) {
+    cmd.nums.forEach(n => state.submitted.add(n));
   }
+
+  if (isInputEvent) {
+    console.log("SKIP_SUBMIT_IN_INPUT");
     return;
   }
 
-  // ===== add =====
-  if (cmd.type === "add") {
-    saveLock = false;
-    add(key, cmd.nums);
-    state = reduceState(state, cmd);
-    safeRender(state);
-    return;
-  }
-
-  // ===== delete =====
-  if (cmd.type === "delete") {
-    saveLock = false;
-    remove(key, cmd.nums);
-    state = reduceState(state, cmd);
-    safeRender(state);
-    return;
-  }
-
-  // ===== save（何もしない）=====
-  if (cmd.type === "save") return;
-
-  // ===== その他 =====
+  doSubmit(cmd);
+  return;
+}
+// ===== add =====
+if (cmd.type === "add") {
   saveLock = false;
+
+  add(key, cmd.nums);
+
+  if (!state.submitted) {
+    state.submitted = new Set();
+  }
+
+  cmd.nums?.forEach(n => state.submitted.add(n));
+
   state = reduceState(state, cmd);
   safeRender(state);
+  return;
+}
+
+// ===== delete =====
+if (cmd.type === "delete") {
+  saveLock = false;
+
+  remove(key, cmd.nums);
+
+  if (!state.submitted) {
+    state.submitted = new Set();
+  }
+
+  cmd.nums?.forEach(n => state.submitted.delete(n));
+
+  state = reduceState(state, cmd);
+  safeRender(state);
+  return;
+}
+
+// ===== save（何もしない）=====
+if (cmd.type === "save") return;
+
+// ===== その他 =====
+saveLock = false;
+state = reduceState(state, cmd);
+safeRender(state);
+
 }
 let inputTimer = null;
 let lastKeyProcessed = null;
@@ -445,6 +467,8 @@ textarea.addEventListener("input", () => {
     if (!processed.includes("提出")) return;
 
     const cmd = parseCommand(processed);
+    console.log("DEBUG CMD:", cmd);
+    console.log("DEBUG NUMS:", cmd.nums);
     const key = resolveKey(cmd);
 
     if (!key) return;
@@ -464,10 +488,7 @@ saveBtn?.addEventListener("click", async () => {
   if (!text) return;
 
   const cmd = parseCommand(text);
-  if (cmd.type === "submit") {
-  console.log("SKIP_SUBMIT_ON_SAVE_CLICK");
-  return;
-}
+ 
   const key = resolveKey(cmd);
 
   console.log("CMD:", cmd);
@@ -498,7 +519,7 @@ try {
     {
       student: cmd.nums?.[0] || 1,
       rate: 0,
-      submitted: cmd.nums || [],
+      submitted: new Set(cmd.nums || []),
       missing: [],
       submittedCount: cmd.nums?.length || 0,
       totalHw: 1
@@ -694,6 +715,12 @@ function processInput(text) {
 
 function doSubmit(cmd) {
 console.log("SUBMIT:", cmd);
+const payload = {
+  grade: state.grade,
+  classNum: state.classNum,
+  hw: state.hw,
+  submitted: Array.from(state.submitted)
+};
 }
 function focusTextarea() {
   requestAnimationFrame(() => {
