@@ -353,13 +353,13 @@ export function handleInput(text, isInputEvent = false) {
   const cmd = parseCommand(processed);
   console.log("DEBUG CMD:", cmd);
   console.log("DEBUG NUMS:", cmd.nums);
-  const key = resolveKey(cmd);
 
   console.log("CMD:", cmd);
   console.log("KEY:", key);
   console.log("STATE:", state);
 
   logDebugCommand(cmd, getDebugKey(cmd, key));
+    const key = resolveKey(cmd);
 
   if (cmd.type === "noop") return;
   updateState(cmd); // ← ★ここに追加（これだけ）
@@ -410,7 +410,7 @@ if (cmd.type === "submit") {
   }
 
 
-  submit(getKey(state), cmd.nums);
+  submit(resolveKey(cmd), cmd.nums);
   safeRender(state);
   return;
 }
