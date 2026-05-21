@@ -13,14 +13,14 @@ function safeRender(state, cmd = null) {
     render(state, cmd);
   });
 }
-
 function createInitialState() {
   return {
     grade: null,
     classNum: null,
     hw: null,
     isLocked: false,
-    lastProcessedLine: ""
+    lastProcessedLine: "",
+    lastNums: []
   };
 }
 const YEARS = [2024, 2025, 2026];
@@ -300,6 +300,21 @@ async function loadFirebaseBackupModule() {
   return import("./firebaseBackup.js?v=20260508-student-public-01");
 }
 
+function updateState(cmd) {
+  if (Number.isFinite(cmd.grade)) {
+    state.grade = cmd.grade;
+  }
+
+  if (Number.isFinite(cmd.classNum)) {
+    state.classNum = cmd.classNum;
+  }
+
+  if (Number.isFinite(cmd.hw)) {
+    state.hw = cmd.hw;
+  }
+}
+
+
 export function handleInput(text, isInputEvent = false) {
   console.log("handleInput", text);
 
@@ -347,7 +362,7 @@ export function handleInput(text, isInputEvent = false) {
   logDebugCommand(cmd, getDebugKey(cmd, key));
 
   if (cmd.type === "noop") return;
-
+  updateState(cmd); // ← ★ここに追加（これだけ）
   // ===== サマリー系 =====
   if (cmd.type === "studentSummary") {
     const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
@@ -388,19 +403,14 @@ export function handleInput(text, isInputEvent = false) {
 
  // ===== submit =====
 if (cmd.type === "submit") {
-  const safe = normalizeCmd(cmd, state);
+  if (cmd.nums?.length) {
+    state.lastNums = cmd.nums;
+  } else {
+    cmd.nums = state.lastNums || [];
+  }
 
-  state = {
-    ...state,
-    grade: safe.grade,
-    classNum: safe.classNum,
-    hw: safe.hw,
-  };
 
-  const key = getKey(state);
-
-  submit(key, safe.nums);
-
+  submit(getKey(state), cmd.nums);
   safeRender(state);
   return;
 }
@@ -410,13 +420,6 @@ if (cmd.type === "add") {
 
   add(key, cmd.nums);
 
-  
- state = {
-  ...state,
-  grade: Number.isFinite(cmd.grade) ? cmd.grade : state.grade,
-  classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : state.classNum,
-  hw: Number.isFinite(cmd.hw) ? cmd.hw : state.hw,
-};
   safeRender(state);
   return;
 }
@@ -426,13 +429,6 @@ if (cmd.type === "delete") {
   saveLock = false;
 
   remove(key, cmd.nums);
-
-  state = {
-    ...state,
-    grade: Number.isFinite(cmd.grade) ? cmd.grade : state.grade,
-    classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : state.classNum,
-    hw: Number.isFinite(cmd.hw) ? cmd.hw : state.hw,
-  };
   safeRender(state);
   return;
 }
@@ -442,12 +438,7 @@ if (cmd.type === "save") return;
 
 // ===== その他 =====
 saveLock = false;
-state = {
-  ...state,
-  grade: Number.isFinite(cmd.grade) ? cmd.grade : state.grade,
-  classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : state.classNum,
-  hw: Number.isFinite(cmd.hw) ? cmd.hw : state.hw,
-};
+
 safeRender(state);
 
 }
@@ -457,24 +448,18 @@ let lastKeyProcessed = null;
 textarea.addEventListener("input", () => {
   clearTimeout(inputTimer);
 
+  const text = textarea.value;
+
   inputTimer = setTimeout(() => {
-    const processed = normalizeText(textarea.value);
+    const processed = normalizeText(text);
+
     if (!processed) return;
 
-    // 確定ワードだけ
     if (!processed.includes("提出")) return;
 
     const cmd = parseCommand(processed);
-    console.log("DEBUG CMD:", cmd);
-    console.log("DEBUG NUMS:", cmd.nums);
-    const key = resolveKey(cmd);
-
-    if (!key) return;
-    if (key === lastKeyProcessed) return;
 
     processInput(processed);
-
-    lastKeyProcessed = key;
   }, 500);
 });
 
