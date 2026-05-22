@@ -50,6 +50,7 @@ let currentSummary = null;
 let currentSummaryContext = null;
 let saveLock = false;
 
+
 function resolveKeyFromState(state) {
   if (!state.grade || !state.classNum || !state.hw) return null;
 
@@ -508,6 +509,7 @@ saveBtn?.addEventListener("click", async () => {
   }
 
   // ③ commitは更新後のみ
+// ③ commitは更新後のみ
   commit(key);
 
   // ④ Firestore（safeのみ使う）
@@ -525,19 +527,51 @@ saveBtn?.addEventListener("click", async () => {
     }));
 
     await publishStudentSummaryToFirestore(rows, context);
-
   } catch (e) {
     console.error("FIRESTORE_SAVE_ERROR:", e);
   }
 
+  // ⑤【修正・防弾仕様】ローカルストレージの履歴配列に、確実に提出された番号をセットして保存する
+  try {
+    const currentHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+    
+    // safe.nums が空でなければそれを使い、もし空なら storage.js の getNumbers から最新の確定データを引き抜く
+    // ※ getNumbers(key) を使うために、ファイルの先頭で import { getNumbers } from "./storage.js"; が必要です（もし未インポートなら適宜追加、または safe.nums の強制チェック）
+    let confirmedNums = [];
+    if (safe && safe.nums && safe.nums.length > 0) {
+      confirmedNums = safe.nums;
+    } else if (typeof getNumbers === "function") {
+      confirmedNums = getNumbers(key);
+    }
+
+    // 履歴にプッシュする
+    currentHistory.push({
+      key: key,
+      nums: confirmedNums, // 👈 確実に番号が入った配列
+      timestamp: Date.now()
+    });
+    
+    localStorage.setItem("homeworkHistory", JSON.stringify(currentHistory));
+    console.log("🔥 HISTORY_WRITE_SUCCESS_EXPLICIT_WITH_NUMS:", confirmedNums);
+  } catch (err) {
+    console.error("HISTORY_WRITE_FAILED:", err);
+  }
   console.log("BEFORE_RESET_STATE:", state);
 
   lastSavedText = text;
   lastSavedSignature = key;
 
+  // 💥 割り込みイベント（handleInput）のパルスを完全にやり過ごすために、描画処理を一瞬遅らせる（0ミリ秒の非同期キューに入れる）
   keepInputReset();
   resetSpeechMemory();
-  safeRender(state);
+
+  setTimeout(() => {
+    console.log("🚀 FORCED_FINAL_RENDER_START");
+    safeRender(state);
+    if (typeof renderHistory === "function") {
+      renderHistory(); // 👈 念押しで履歴をもう一度強制発火
+    }
+  }, 50); 
 });
 
 resetTextBtn?.addEventListener("click", () => {
@@ -691,7 +725,7 @@ function render(state) {
     console.log("render");
   renderState(state);
   renderMetaControls();
-  renderList(state);
+  //renderList(state);
   renderHistory(); // ←これ絶対必要
   if (currentSummary) {
     renderStudentSummaryTable(currentSummary);
