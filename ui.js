@@ -154,8 +154,8 @@ export function renderStudentSummaryTable(rows) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.student}番</td>
-      <td class="submitted">${subList.length ? subList.map(n => `宿題${n}`).join(", ") : "-"}</td>
-      <td class="missing">${misList.length ? misList.map(n => `宿題${n}`).join(", ") : "-"}</td>
+     <td class="submitted">${subList.length ? subList.join(", ") : "-"}</td>
+      <td class="missing">${misList.length ? misList.join(", ") : "-"}</td>
       <td>${subList.length}/${row.totalHw}（${row.rate}%）</td>
     `;
 
