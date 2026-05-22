@@ -336,10 +336,8 @@ export function handleInput(text, isInputEvent = false) {
 
   if (!processed) return;
 
-// ✨ 修正後（防弾仕様）
   // 音声入力イベント（あるいは保存中）の時は、textareaの値を手動で書き換えない（暴走・増殖ループを防止！）
   if (!isInputEvent && textarea.value !== processed) {
-    // 喋っている最中にプログラムがテキストエリアを上書きするのを完全に封印します
     console.log("[DEBUG] スキップされた手動代入:", processed);
   } else if (textarea.value !== processed) {
     textarea.value = processed;
@@ -355,33 +353,26 @@ export function handleInput(text, isInputEvent = false) {
     processed = base.slice(0, (rawSaveIndex !== -1 ? rawSaveIndex : normalizedSaveIndex) + 2);
   }
 
-  // 重複処理防止
-  if (processed === lastProcessedText) return;
-  lastProcessedText = processed;
-
-  // コマンド解析
+  // 📋 コマンド解析（重複ガードより前に実行し、最新の声を常にキャッチする）
   const cmd = parseCommand(processed);
-  updateState(cmd); // ← ★ここに追加（これだけ）
+  updateState(cmd); 
   const key = resolveKey(cmd);
+  
   console.log("DEBUG CMD:", cmd);
   console.log("DEBUG NUMS:", cmd.nums);
-
   console.log("CMD:", cmd);
   console.log("KEY:", key);
   console.log("STATE:", state);
 
   logDebugCommand(cmd, getDebugKey(cmd, key));
-    
 
-  if (cmd.type === "noop") return;
- 
-  // ===== サマリー系 =====
+  // ✨【最重要：集計コマンドの救出】重複ガードの前に実行することで、集計表示を確実に即座に発火させる！
   if (cmd.type === "studentSummary") {
     const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
     currentSummary = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size);
     currentSummaryContext = { grade: cmd.grade, classNum: cmd.classNum };
     safeRender(state);
-    return;
+    return; // 👈 集計が動いたらここで即時終了（暴走させない）
   }
 
   if (cmd.type === "summary") {
@@ -399,12 +390,22 @@ export function handleInput(text, isInputEvent = false) {
     currentSummary = buildSummary(history, grade, classNum, cmd.size);
     currentSummaryContext = { grade, classNum };
     safeRender(state);
+    return; // 👈 集計が動いたらここで即時終了（暴走させない）
+  }
+
+  // 🛡️ 提出・削除系の重複処理防止（集計コマンドの後にガードをかける）
+  if (processed === lastProcessedText) {
+    // 全く同じテキストでも、入力途中の提出番号（submitted）の記入・描画だけは更新しておく
+    safeRender(state);
     return;
   }
+  lastProcessedText = processed;
+
+  if (cmd.type === "noop") return;
 
   // ===== save異常 =====
   if (cmd.type === "save" && !key) {
-    console.log("DEBUG_SKIP_INVALID_SAVE", JSON.stringify({ processed }));
+    print("DEBUG_SKIP_INVALID_SAVE", JSON.stringify({ processed }));
     keepInputReset();
     resetSpeechMemory();
     safeRender(state);
@@ -413,52 +414,44 @@ export function handleInput(text, isInputEvent = false) {
 
   if (!key) return;
 
-// ===== submit =====
-if (cmd.type === "submit") {
+  // ===== submit =====
+  if (cmd.type === "submit") {
+    const key = resolveKey(cmd);
+    if (!key) return;
 
-  // ❌ KEYがないなら何もしない
-  const key = resolveKey(cmd);
-  if (!key) return;
+    if (!cmd.nums?.length && state.lastNums?.length) {
+      cmd.nums = state.lastNums;
+    }
 
-  // 👉 nums補完（ここはOK）
-  if (!cmd.nums?.length && state.lastNums?.length) {
-    cmd.nums = state.lastNums;
+    if (!cmd.nums?.length) return;
+
+    submit(key, cmd.nums);
+    safeRender(state);
+    return;
   }
 
-  // ❌ numsがまだ空なら送らない
-  if (!cmd.nums?.length) return;
+  // ===== add =====
+  if (cmd.type === "add") {
+    saveLock = false;
+    add(key, cmd.nums);
+    safeRender(state);
+    return;
+  }
 
-  submit(key, cmd.nums);
-  safeRender(state);
-  return;
-}
-// ===== add =====
-if (cmd.type === "add") {
+  // ===== delete =====
+  if (cmd.type === "delete") {
+    saveLock = false;
+    remove(key, cmd.nums);
+    safeRender(state);
+    return;
+  }
+
+  // ===== save（何もしない）=====
+  if (cmd.type === "save") return;
+
+  // ===== その他 =====
   saveLock = false;
-
-  add(key, cmd.nums);
-
   safeRender(state);
-  return;
-}
-
-// ===== delete =====
-if (cmd.type === "delete") {
-  saveLock = false;
-
-  remove(key, cmd.nums);
-  safeRender(state);
-  return;
-}
-
-// ===== save（何もしない）=====
-if (cmd.type === "save") return;
-
-// ===== その他 =====
-saveLock = false;
-
-safeRender(state);
-
 }
 let inputTimer = null;
 let lastKeyProcessed = null;
@@ -473,9 +466,8 @@ textarea.addEventListener("input", () => {
 
     if (!processed) return;
 
-    if (!processed.includes("提出")) return;
-
-    const cmd = parseCommand(processed);
+    // ✨【修正】「提出」だけでなく「生徒別」や「集計」のコマンドも通すように門番を拡張！
+    if (!processed.includes("提出") && !processed.includes("生徒別") && !processed.includes("集計")) return;
 
     processInput(processed);
   }, 500);
