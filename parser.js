@@ -61,7 +61,6 @@ export function parseSize(text) {
 
 export function parseCommand(text) {
   const t = normalizeText(text);
-  const cleanText = /保存$/.test(t.trim()) ? t.replace(/保存.*/, "保存") : t;
 
   if (/生徒別|番号別/.test(t)) {
     const gradeMatch = t.match(/(\d+)年/);
@@ -103,8 +102,6 @@ export function parseCommand(text) {
   let type = "input";
   if (/(集計|一覧|summary|サマリー)/i.test(t)) {
     type = "summary";
-  } else if (/保存$/.test(t.trim())) {
-    type = "save";
   } else if (/(削除|消す|delete)/i.test(t)) {
     type = "delete";
   } else if (/追加/.test(t)) {
@@ -115,7 +112,7 @@ export function parseCommand(text) {
 
   return {
     type,
-    text: cleanText,
+    text: t,
     grade: cls?.grade ?? null,
     classNum: cls?.classId ?? null,
     hw: hw ?? null,

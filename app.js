@@ -490,8 +490,7 @@ export function handleInput(text, isInputEvent = false) {
     return;
   }
 
-  // ===== save（何もしない）=====
-  if (cmd.type === "save") return;
+ 
 
   // ===== その他 =====
   saveLock = false;
