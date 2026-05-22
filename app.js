@@ -570,32 +570,37 @@ saveBtn?.addEventListener("click", async () => {
     console.error("FIRESTORE_SAVE_ERROR:", e);
   }
 
-  // ⑤【修正・防弾仕様】ローカルストレージのすべての歴史キーに同期させて保存する
+// ⑤【修正・防弾仕様】ローカルストレージのすべての歴史キーに同期させて保存する
   try {
     const keys = ["homeworkHistory", "homework_history", "history"];
     let currentHistory = loadHistorySafely();
     
-    // 💡 直近の履歴（最後の要素）を取得
+    // 💡 今回保存する出席番号を、判定と保存の前にあらかじめ昇順ソートしておく
+    const sortedNums = Array.isArray(safe.nums) 
+      ? [...safe.nums].sort((a, b) => Number(a) - Number(b)) 
+      : [];
+
+    // 直近の履歴（最後の要素）を取得
     const lastItem = currentHistory[currentHistory.length - 1];
     
-    // 💡 今回保存しようとしているデータ（キーと時間、または番号の長さ）が直近と全く同じか判定
+    // 💡 比較時もソート済みの「sortedNums」を使用することで、2重書き込みを100%完璧に防ぐ
     const isDuplicate = lastItem && 
                         lastItem.key === key && 
-                        JSON.stringify(lastItem.nums) === JSON.stringify(safe.nums || []);
+                        JSON.stringify(lastItem.nums) === JSON.stringify(sortedNums);
 
     if (isDuplicate) {
       console.log("🛡️ 重複を検知したため、2回目の履歴書き込みをスキップしました");
     } else {
       currentHistory.push({
         key: key,
-        nums: safe.nums || [],
+        nums: sortedNums, // 昇順ソート済みの配列を保存
         timestamp: Date.now()
       });
       // すべての可能性のあるキーに一重書きしてズレを撲滅
       keys.forEach(k => {
         localStorage.setItem(k, JSON.stringify(currentHistory));
       });
-      console.log("🔥 HISTORY_WRITE_SUCCESS_EXPLICIT_WITH_NUMS:", safe.nums);
+      console.log("🔥 HISTORY_WRITE_SUCCESS_EXPLICIT_WITH_NUMS:", sortedNums);
     }
   } catch (err) {
     console.error("HISTORY_WRITE_FAILED:", err);
