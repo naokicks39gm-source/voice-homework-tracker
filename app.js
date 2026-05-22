@@ -40,6 +40,7 @@ const firestoreLogoutBtn = document.getElementById("firestoreLogoutBtn");
 const firestoreBackupBtn = document.getElementById("firestoreBackupBtn");
 const publishStudentShareBtn = document.getElementById("publishStudentShareBtn");
 const firestoreStatus = document.getElementById("firestoreStatus");
+console.log("STATE RESET DETECTED");
 let state = createInitialState();
 let lastProcessedText = "";
 let lastSavedText = "";
@@ -301,16 +302,20 @@ async function loadFirebaseBackupModule() {
 }
 
 function updateState(cmd) {
-  if (Number.isFinite(cmd.grade)) {
-    state.grade = cmd.grade;
+  if (cmd.grade != null) {
+    state.grade = Number(cmd.grade);
   }
 
-  if (Number.isFinite(cmd.classNum)) {
-    state.classNum = cmd.classNum;
+  if (cmd.classNum != null) {
+    state.classNum = Number(cmd.classNum);
   }
 
-  if (Number.isFinite(cmd.hw)) {
-    state.hw = cmd.hw;
+  if (cmd.hw != null) {
+    state.hw = Number(cmd.hw);
+  }
+
+  if (cmd.nums?.length) {
+    state.lastNums = cmd.nums;
   }
 }
 
@@ -351,6 +356,8 @@ export function handleInput(text, isInputEvent = false) {
 
   // コマンド解析
   const cmd = parseCommand(processed);
+  updateState(cmd); // ← ★ここに追加（これだけ）
+  const key = resolveKey(cmd);
   console.log("DEBUG CMD:", cmd);
   console.log("DEBUG NUMS:", cmd.nums);
 
@@ -359,10 +366,10 @@ export function handleInput(text, isInputEvent = false) {
   console.log("STATE:", state);
 
   logDebugCommand(cmd, getDebugKey(cmd, key));
-    const key = resolveKey(cmd);
+    
 
   if (cmd.type === "noop") return;
-  updateState(cmd); // ← ★ここに追加（これだけ）
+ 
   // ===== サマリー系 =====
   if (cmd.type === "studentSummary") {
     const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
@@ -401,16 +408,22 @@ export function handleInput(text, isInputEvent = false) {
 
   if (!key) return;
 
- // ===== submit =====
+// ===== submit =====
 if (cmd.type === "submit") {
-  if (cmd.nums?.length) {
-    state.lastNums = cmd.nums;
-  } else {
-    cmd.nums = state.lastNums || [];
+
+  // ❌ KEYがないなら何もしない
+  const key = resolveKey(cmd);
+  if (!key) return;
+
+  // 👉 nums補完（ここはOK）
+  if (!cmd.nums?.length && state.lastNums?.length) {
+    cmd.nums = state.lastNums;
   }
 
+  // ❌ numsがまだ空なら送らない
+  if (!cmd.nums?.length) return;
 
-  submit(resolveKey(cmd), cmd.nums);
+  submit(key, cmd.nums);
   safeRender(state);
   return;
 }
@@ -471,49 +484,51 @@ saveBtn?.addEventListener("click", async () => {
   if (!text) return;
 
   const cmd = parseCommand(text);
- 
-  const key = resolveKey(cmd);
+  const safe = normalizeCmd(cmd, state);
+  const key = resolveKey(safe);
 
   console.log("CMD:", cmd);
+  console.log("SAFE:", safe);
   console.log("KEY:", key);
   console.log("STATE:", state);
 
-
-if (!key) {
-  console.log("WARN: key is null but state updated");
-}
-
-  // ① ローカル反映はここ（必要）
-  if (cmd.type !== "delete" && cmd.nums?.length) {
-
+  // ① keyが取れないなら即終了（ここ曖昧にするな）
+  if (!key) {
+    console.error("FATAL: key is null");
+    return;
   }
 
+  // ② state更新（ここが本体）
+  if (safe.type !== "delete" && safe.nums?.length) {
+    add(key, safe.nums);
+  }
+
+  if (safe.type === "delete" && safe.nums?.length) {
+    remove(key, safe.nums);
+  }
+
+  // ③ commitは更新後のみ
   commit(key);
 
-  // ② Firestore（ここはOK）
-// ② Firestore（修正版）
-try {
-const safe = normalizeCmd(cmd, state);
+  // ④ Firestore（safeのみ使う）
+  try {
+    const context = {
+      grade: safe.grade,
+      classNum: safe.classNum
+    };
 
-const context = {
-  grade: safe.grade,
-  classNum: safe.classNum
-};
-
-  const rows = [
-    {
-      student: cmd.nums?.[0] || 1,
+    const rows = safe.nums.map((n) => ({
+      student: n,
       rate: 0,
       missing: [],
       totalHw: 1
-    }
-  ];
+    }));
 
-  await publishStudentSummaryToFirestore(rows, context);
+    await publishStudentSummaryToFirestore(rows, context);
 
-} catch (e) {
-  console.error("FIRESTORE_SAVE_ERROR:", e);
-}
+  } catch (e) {
+    console.error("FIRESTORE_SAVE_ERROR:", e);
+  }
 
   console.log("BEFORE_RESET_STATE:", state);
 

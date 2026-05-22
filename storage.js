@@ -101,8 +101,17 @@ export function saveToLocalStorage() {
 
 function saveHistory(entry) {
   const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-  history.push(entry);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+
+  const exists = history.some(
+    (h) =>
+      h.key === entry.key &&
+      JSON.stringify(h.nums) === JSON.stringify(entry.nums)
+  );
+
+  if (!exists) {
+    history.push(entry);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }
 }
 
 export function add(key, nums) {
@@ -149,7 +158,7 @@ saveHistory({
 }
 
 export function get(key) {
-  return pendingMap[key] || {};
+  return homeworkMap[key] || {};
 }
 
 export function getNumbers(key) {

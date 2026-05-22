@@ -29,19 +29,28 @@ export function renderState(state) {
 // renderList
 // =========================
 export function renderList(state) {
+  return; //
   if (!state || state.grade == null || state.classNum == null) return;
 
   const keyPrefix = `${state.grade}-${state.classNum}`;
   const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
 
-  const filtered = history.filter(h => h.key.startsWith(keyPrefix));
+  const latestMap = {};
+
+  history.forEach(item => {
+    if (!item.key.startsWith(keyPrefix)) return;
+
+    if (!latestMap[item.key] || latestMap[item.key].timestamp < item.timestamp) {
+      latestMap[item.key] = item;
+    }
+  });
 
   const el = document.getElementById("list");
   if (!el) return;
 
   el.innerHTML = "";
 
-  filtered.forEach(item => {
+  Object.values(latestMap).forEach(item => {
     const div = document.createElement("div");
     div.textContent = item.key;
     el.appendChild(div);
@@ -102,7 +111,9 @@ export function renderSummaryTable(rows) {
 
   rows.forEach((row) => {
     const submitted = getNumbers(row.key);
-
+  console.log("row:", row);
+  console.log("submitted:", submitted);
+  console.log("key:", row.key);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.hw}</td>
