@@ -536,27 +536,30 @@ saveBtn?.addEventListener("click", async () => {
   }
 
   // ⑤【修正・防弾仕様】ローカルストレージの履歴配列に、確実に提出された番号をセットして保存する
+  // ✨【修正・重複排除仕様】すでに直前で履歴が保存されている場合は、2重でプッシュしないようにガード
   try {
     const currentHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
     
-    // safe.nums が空でなければそれを使い、もし空なら storage.js の getNumbers から最新の確定データを引き抜く
-    // ※ getNumbers(key) を使うために、ファイルの先頭で import { getNumbers } from "./storage.js"; が必要です（もし未インポートなら適宜追加、または safe.nums の強制チェック）
-    let confirmedNums = [];
-    if (safe && safe.nums && safe.nums.length > 0) {
-      confirmedNums = safe.nums;
-    } else if (typeof getNumbers === "function") {
-      confirmedNums = getNumbers(key);
-    }
-
-    // 履歴にプッシュする
-    currentHistory.push({
-      key: key,
-      nums: confirmedNums, // 👈 確実に番号が入った配列
-      timestamp: Date.now()
-    });
+    // 💡 直近の履歴（最後の要素）を取得
+    const lastItem = currentHistory[currentHistory.length - 1];
     
-    localStorage.setItem("homeworkHistory", JSON.stringify(currentHistory));
-    console.log("🔥 HISTORY_WRITE_SUCCESS_EXPLICIT_WITH_NUMS:", confirmedNums);
+    // 💡 今回保存しようとしているデータ（キーと時間、または番号の長さ）が直近と全く同じか判定
+    const isDuplicate = lastItem && 
+                        lastItem.key === key && 
+                        JSON.stringify(lastItem.nums) === JSON.stringify(safe.nums || []);
+
+    if (isDuplicate) {
+      console.log("🛡️ 重複を検知したため、2回目の履歴書き込みをスキップしました");
+    } else {
+      // 重複していない場合のみプッシュ（保険）
+      currentHistory.push({
+        key: key,
+        nums: safe.nums || [],
+        timestamp: Date.now()
+      });
+      localStorage.setItem("homeworkHistory", JSON.stringify(currentHistory));
+      console.log("🔥 HISTORY_WRITE_SUCCESS_EXPLICIT_WITH_NUMS:", safe.nums);
+    }
   } catch (err) {
     console.error("HISTORY_WRITE_FAILED:", err);
   }
