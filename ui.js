@@ -128,7 +128,7 @@ export function renderSummaryTable(rows) {
 
 
 // =========================
-// renderStudentSummaryTable
+// renderStudentSummaryTable（完全に修正された防弾版）
 // =========================
 export function renderStudentSummaryTable(rows) {
   const container = document.getElementById("summary");
@@ -147,14 +147,16 @@ export function renderStudentSummaryTable(rows) {
   `;
 
   rows.forEach((row) => {
-    const submitted = getNumbers(row.key);
+    // 💡 row.key から取得するのではなく、summary.js が集計した row.submitted を直接使用する
+    const subList = Array.isArray(row.submitted) ? row.submitted : [];
+    const misList = Array.isArray(row.missing) ? row.missing : [];
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${row.student}</td>
-      <td class="submitted">${submitted.length ? submitted.join(", ") : "-"}</td>
-      <td class="missing">${row.missing?.length ? row.missing.join(", ") : "-"}</td>
-      <td>${submitted.length}/${row.totalHw}（${row.rate}%）</td>
+      <td>${row.student}番</td>
+      <td class="submitted">${subList.length ? subList.map(n => `宿題${n}`).join(", ") : "-"}</td>
+      <td class="missing">${misList.length ? misList.map(n => `宿題${n}`).join(", ") : "-"}</td>
+      <td>${subList.length}/${row.totalHw}（${row.rate}%）</td>
     `;
 
     table.appendChild(tr);

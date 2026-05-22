@@ -2,7 +2,7 @@ import { getLastLine, normalizeText } from "./normalizer.js";
 import { parseCommand } from "./parser.js?v=20260502-student-summary-01";
 import { add, clearAllData, commit, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js?v=20260502-reset-01";
 import { resetSpeechMemory, setSpeechHandler, startSpeech } from "./speech.js?v=20260502-logs-01";
-import { buildStudentSummary, buildSummary } from "./summary.js?v=20260504-csv-01";
+import { buildStudentSummary, buildSummary } from "./summary.js?v=20260522-emergency-fixed-v1";
 import { downloadCsv, downloadHtml, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable } from "./ui.js?v=20260508-student-html-01";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -320,6 +320,48 @@ function updateState(cmd) {
   }
 }
 
+// 📦 ローカルストレージ内の可能性のある全種類の履歴キーからデータをサルベージする安全関数
+function loadHistorySafely() {
+  const keys = ["homeworkHistory", "homework_history", "history"];
+  for (const k of keys) {
+    try {
+      const data = localStorage.getItem(k);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`[DEBUG] 履歴データをキー「${k}」から正常にロードしました。件数: ${parsed.length}`);
+          return parsed;
+        }
+      }
+    } catch (e) {}
+  }
+  
+  // 💡 もし上記配列形式が全滅していた場合、単一のマップオブジェクトから擬似履歴を復元する超強力フォールバック
+  try {
+    const mapData = localStorage.getItem("homeworkMap") || localStorage.getItem("homework_map");
+    if (mapData) {
+      const parsedMap = JSON.parse(mapData);
+      const generatedHistory = Object.keys(parsedMap).map(key => {
+        // 例: "1-1-宿題6" のオブジェクトから配列を取り出す
+        const entry = parsedMap[key];
+        let nums = [];
+        if (Array.isArray(entry)) nums = entry;
+        else if (entry && Array.isArray(entry.nums)) nums = entry.nums;
+        else if (entry && typeof entry === "object") {
+          nums = Object.keys(entry).filter(k => entry[k]).map(Number);
+        }
+        return { key, nums, timestamp: Date.now() };
+      });
+      if (generatedHistory.length > 0) {
+        console.log(`[DEBUG] homeworkMapから履歴を自己修復生成しました。件数: ${generatedHistory.length}`);
+        return generatedHistory;
+      }
+    }
+  } catch (e) {}
+
+  return [];
+}
+
 
 export function handleInput(text, isInputEvent = false) {
   console.log("handleInput", text);
@@ -368,7 +410,8 @@ export function handleInput(text, isInputEvent = false) {
 
   // ✨【最重要：集計コマンドの救出】重複ガードの前に実行することで、集計表示を確実に即座に発火させる！
   if (cmd.type === "studentSummary") {
-    const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+    // 🛠️【超防弾修正】フォールバック関数から確実に実データを取得
+    const history = loadHistorySafely();
     currentSummary = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size);
     currentSummaryContext = { grade: cmd.grade, classNum: cmd.classNum };
     safeRender(state);
@@ -386,7 +429,8 @@ export function handleInput(text, isInputEvent = false) {
       return;
     }
 
-    const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+    // 🛠️【超防弾修正】フォールバック関数から確実に実データを取得
+    const history = loadHistorySafely();
     currentSummary = buildSummary(history, grade, classNum, cmd.size);
     currentSummaryContext = { grade, classNum };
     safeRender(state);
@@ -505,7 +549,6 @@ saveBtn?.addEventListener("click", async () => {
   }
 
   // ③ commitは更新後のみ
-// ③ commitは更新後のみ
   commit(key);
 
   // ④ Firestore（safeのみ使う）
@@ -527,10 +570,10 @@ saveBtn?.addEventListener("click", async () => {
     console.error("FIRESTORE_SAVE_ERROR:", e);
   }
 
-  // ⑤【修正・防弾仕様】ローカルストレージの履歴配列に、確実に提出された番号をセットして保存する
-  // ✨【修正・重複排除仕様】すでに直前で履歴が保存されている場合は、2重でプッシュしないようにガード
+  // ⑤【修正・防弾仕様】ローカルストレージのすべての歴史キーに同期させて保存する
   try {
-    const currentHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+    const keys = ["homeworkHistory", "homework_history", "history"];
+    let currentHistory = loadHistorySafely();
     
     // 💡 直近の履歴（最後の要素）を取得
     const lastItem = currentHistory[currentHistory.length - 1];
@@ -543,13 +586,15 @@ saveBtn?.addEventListener("click", async () => {
     if (isDuplicate) {
       console.log("🛡️ 重複を検知したため、2回目の履歴書き込みをスキップしました");
     } else {
-      // 重複していない場合のみプッシュ（保険）
       currentHistory.push({
         key: key,
         nums: safe.nums || [],
         timestamp: Date.now()
       });
-      localStorage.setItem("homeworkHistory", JSON.stringify(currentHistory));
+      // すべての可能性のあるキーに一重書きしてズレを撲滅
+      keys.forEach(k => {
+        localStorage.setItem(k, JSON.stringify(currentHistory));
+      });
       console.log("🔥 HISTORY_WRITE_SUCCESS_EXPLICIT_WITH_NUMS:", safe.nums);
     }
   } catch (err) {
@@ -559,6 +604,9 @@ saveBtn?.addEventListener("click", async () => {
 
   lastSavedText = text;
   lastSavedSignature = key;
+
+  // ✨【完全修正】保存が確定したら、引き継ぎ用の古い出席番号メモリを完全にクリアする！
+  state.lastNums = [];
 
   // 💥 割り込みイベント（handleInput）のパルスを完全にやり過ごすために、描画処理を一瞬遅らせる（0ミリ秒の非同期キューに入れる）
   keepInputReset();
@@ -721,10 +769,9 @@ function getCurrentKey() {
 }
 
 function render(state) {
-    console.log("render");
+  console.log("render");
   renderState(state);
   renderMetaControls();
-  //renderList(state);
   renderHistory(); // ←これ絶対必要
   if (currentSummary) {
     renderStudentSummaryTable(currentSummary);
