@@ -202,3 +202,32 @@ export function downloadHtml(filename, htmlText) {
 
   URL.revokeObjectURL(url);
 }
+// =========================
+// ボタン作成
+// =========================
+export function renderClassButtons() {
+  const container = document.getElementById("class-buttons");
+  if (!container) return;
+
+  container.innerHTML = "";
+  const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+  
+  // 履歴から「学年-組」の組み合わせを抽出（重複排除）
+  const classes = [...new Set(history.map(item => {
+    const parts = item.key.split("-");
+    return `${parts[0]}-${parts[1]}`;
+  }))];
+
+  classes.forEach(cls => {
+    const btn = document.createElement("button");
+    btn.textContent = `${cls.split("-")[0]}年${cls.split("-")[1]}組`;
+    btn.onclick = () => {
+      // 💡 ボタンを押した時に「生徒別集計」を行う処理をここに書く
+      // 30人という数字は、何らかの設定か、もしくは履歴から推測する必要があります
+      const size = 30; // とりあえず30で固定、または変更可能に
+      // ここで集計用の関数を呼び出す
+      console.log(`集計開始: ${cls}, 人数: ${size}`);
+    };
+    container.appendChild(btn);
+  });
+}

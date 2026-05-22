@@ -26,14 +26,20 @@ function parseKey(key) {
 }
 
 // 3. 生徒別サマリー集計
-export function buildStudentSummary(history, grade, classNum, size) {
-  const map = {};
+export function buildStudentSummary(history, grade, classNum, providedSize) {  const map = {};
   const allHwSet = new Set();
   const prefix = `${grade}-${classNum}-宿題`;
   const evalLimit = 120;
   const displayLimit = Number(size) || 40;
   const finalHistory = Array.isArray(history) ? history : [];
 
+// 1. 履歴からこのクラスの「最大番号」を探す（これが自動的な生徒数になる）
+  const classHistory = history.filter(item => item.key.startsWith(`${grade}-${classNum}-`));
+  const maxNum = Math.max(...classHistory.flatMap(item => item.nums), 0);
+  
+ // 2. 引数で渡されたprovidedSizeがなければ、maxNumまたは30を使用
+  const size = providedSize || maxNum || 30; // 👈 ここをconstで宣言する
+  
   finalHistory.forEach((entry) => {
     if (!entry || !entry.key || !entry.key.startsWith(prefix)) return;
 

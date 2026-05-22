@@ -100,9 +100,7 @@ export function parseCommand(text) {
   const size = parseSize(t);
 
   let type = "input";
-  if (/(集計|一覧|summary|サマリー)/i.test(t)) {
-    type = "summary";
-  } else if (/(削除|消す|delete)/i.test(t)) {
+  if (/(削除|消す|delete)/i.test(t)) {
     type = "delete";
   } else if (/追加/.test(t)) {
     type = "add";
