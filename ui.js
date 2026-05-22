@@ -76,8 +76,8 @@ export function renderHistory() {
       ? item.nums
       : getNumbers(item.key);
 
-    div.textContent = `${item.key} : ${nums.length ? nums.join("番 ") : "-"}`;
-
+   // ✨ 修正後：mapを使って、すべての数字の後ろに「番」をつけてからスペースで繋ぐ
+div.textContent = `${item.key} : ${nums.length ? nums.map(n => `${n}番`).join(" ") : "-"}`;
     el.appendChild(div);
   });
 }

@@ -336,8 +336,12 @@ export function handleInput(text, isInputEvent = false) {
 
   if (!processed) return;
 
-  // textarea更新（無駄代入防止）
-  if (textarea.value !== processed) {
+// ✨ 修正後（防弾仕様）
+  // 音声入力イベント（あるいは保存中）の時は、textareaの値を手動で書き換えない（暴走・増殖ループを防止！）
+  if (!isInputEvent && textarea.value !== processed) {
+    // 喋っている最中にプログラムがテキストエリアを上書きするのを完全に封印します
+    console.log("[DEBUG] スキップされた手動代入:", processed);
+  } else if (textarea.value !== processed) {
     textarea.value = processed;
   }
 
