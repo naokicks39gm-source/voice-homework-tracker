@@ -13,17 +13,17 @@
     <button id="saveBtn" type="button">保存</button>
     <button id="resetTextBtn" type="button">リセット</button>
     <button id="clearAllDataBtn" type="button">全データ削除（完全リセット）</button>
-    <button id="exportCsvBtn" type="button">CSV出力</button>
     <button id="exportStudentHtmlBtn" type="button">生徒一覧HTML出力</button>
     <button id="firestoreLoginBtn" type="button">管理者ログイン</button>
     <button id="firestoreLogoutBtn" type="button">ログアウト</button>
-     <button id="publishStudentShareBtn" type="button">生徒公開Firestore出力</button>
-   
-   <div id="class-buttons" style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+    <button id="publishStudentShareBtn" type="button" style="display: none;">生徒公開</button>
+    <p>下の集計ボタンを押してから「生徒公開ボタン」が出ます</p>
+    <div id="class-buttons" style="margin: 10px 0; display: flex; gap: 10px; flex-wrap: wrap;"></div>
     
     <span id="firestoreStatus">Firestore: 未ログイン</span>
     <p>CSVは現在表示している集計結果をダウンロードします。</p>
-
+    <button id="exportCsvBtn" type="button">CSV出力</button>
+    
     <div id="historyWrapper">
       <div id="history"></div>
     </div>

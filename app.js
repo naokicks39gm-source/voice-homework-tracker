@@ -785,17 +785,26 @@ function getCurrentKey() {
 }
 
 function render(state) {
-console.log("render 実行中..."); // ログを追加
+  console.log("render 実行中...");
   renderMetaControls();
-  renderHistory(); // ←これ絶対必要
+  renderHistory();
 
-console.log("currentSummaryの状態:", currentSummary); // これを確認！
+  console.log("currentSummaryの状態:", currentSummary);
 
-if (currentSummary && typeof renderStudentSummaryTable === "function") {
+  // ボタン要素を取得
+  const publishBtn = document.getElementById("publishStudentShareBtn");
+
+  if (currentSummary && typeof renderStudentSummaryTable === "function") {
     console.log("表を描画します");
     renderStudentSummaryTable(currentSummary, currentSummaryContext);
+    
+    // 集計がある場合：ボタンを表示
+    if (publishBtn) publishBtn.style.display = "inline-block";
   } else {
     console.log("表は描画されません（条件不一致）");
+    
+    // 集計がない場合：ボタンを隠す
+    if (publishBtn) publishBtn.style.display = "none";
   }
 }
 setSpeechHandler(handleInput);
