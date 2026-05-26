@@ -26,25 +26,38 @@ function parseKey(key) {
 }
 
 // 3. 生徒別サマリー集計
-export function buildStudentSummary(history, grade, classNum, providedSize) {  const map = {};
-  const allHwSet = new Set();
-  const prefix = `${grade}-${classNum}-宿題`;
-  const evalLimit = 120;
-  const displayLimit = Number(size) || 40;
-  const finalHistory = Array.isArray(history) ? history : [];
+export function buildStudentSummary(history, grade, classNum, providedSize) {
+  console.log("summary.js受取データ:", { history, grade, classNum, providedSize });
 
-// 1. 履歴からこのクラスの「最大番号」を探す（これが自動的な生徒数になる）
+  // 1. 基本チェック
+  if (!Array.isArray(history)) {
+    console.error("summary.js: historyが配列ではありません！");
+    return [];
+  }
+
+  // 2. 自動的にサイズを決定
   const classHistory = history.filter(item => item.key.startsWith(`${grade}-${classNum}-`));
   const maxNum = Math.max(...classHistory.flatMap(item => item.nums), 0);
   
- // 2. 引数で渡されたprovidedSizeがなければ、maxNumまたは30を使用
-  const size = providedSize || maxNum || 30; // 👈 ここをconstで宣言する
+  // 💡 ここで `size` を一回だけ定義（const または let）
+  const size = providedSize || maxNum || 30; 
+
+  // 3. 必要な変数の準備
+  const map = {};
+  const allHwSet = new Set();
+  const prefix = `${grade}-${classNum}-宿題`;
+  const evalLimit = 120;
   
+  // 💡 ここで使っていた `displayLimit` も `size` を使うように修正
+  const displayLimit = size; 
+  const finalHistory = history;
+
   finalHistory.forEach((entry) => {
     if (!entry || !entry.key || !entry.key.startsWith(prefix)) return;
 
-    const parsed = parseKey(entry.key);
-    if (!parsed) return; // 安全対策
+    // parseKey が定義されている前提ですが、もしエラーならここを確認
+    const parsed = parseKey(entry.key); 
+    if (!parsed) return;
 
     const hw = parsed.hw;
     allHwSet.add(hw);

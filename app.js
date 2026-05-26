@@ -764,6 +764,18 @@ function initApp() {
   ...loadFromLocalStorage()
 }; // ←これに変更
   startSpeech();
+  // 💡 ボタン生成はここで一度だけ実行する！
+  renderClassButtons((grade, classNum) => {
+    const history = loadHistorySafely();
+
+// もし history が空なら集計が動かないのでログを出す
+  console.log("集計用履歴データ:", history);
+
+    currentSummary = buildStudentSummary(history, grade, classNum, null);
+    currentSummaryContext = { grade, classNum };
+    console.log("集計データを生成しました:", currentSummary);
+    render(state);
+  });
   safeRender(state);
 }
 
@@ -773,23 +785,19 @@ function getCurrentKey() {
 }
 
 function render(state) {
-  console.log("render");
+console.log("render 実行中..."); // ログを追加
   renderState(state);
   renderMetaControls();
   renderHistory(); // ←これ絶対必要
 
-  renderClassButtons((grade, classNum) => {
-    const history = loadHistorySafely();
-    // 💡 buildStudentSummary内で自動的に最大番号を探しに行く
-    currentSummary = buildStudentSummary(history, grade, classNum, null);
-    currentSummaryContext = { grade, classNum };
-    safeRender(state);
-  });
+console.log("currentSummaryの状態:", currentSummary); // これを確認！
 
-  if (currentSummary) {
+if (currentSummary && typeof renderStudentSummaryTable === "function") {
+    console.log("表を描画します");
     renderStudentSummaryTable(currentSummary);
+  } else {
+    console.log("表は描画されません（条件不一致）");
   }
-
 }
 setSpeechHandler(handleInput);
 

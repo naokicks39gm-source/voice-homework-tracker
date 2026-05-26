@@ -205,7 +205,7 @@ export function downloadHtml(filename, htmlText) {
 // =========================
 // ボタン作成
 // =========================
-export function renderClassButtons() {
+export function renderClassButtons(onClassClick) {
   const container = document.getElementById("class-buttons");
   if (!container) return;
 
@@ -218,16 +218,16 @@ export function renderClassButtons() {
     return `${parts[0]}-${parts[1]}`;
   }))];
 
-  classes.forEach(cls => {
-    const btn = document.createElement("button");
-    btn.textContent = `${cls.split("-")[0]}年${cls.split("-")[1]}組`;
-    btn.onclick = () => {
-      // 💡 ボタンを押した時に「生徒別集計」を行う処理をここに書く
-      // 30人という数字は、何らかの設定か、もしくは履歴から推測する必要があります
-      const size = 30; // とりあえず30で固定、または変更可能に
-      // ここで集計用の関数を呼び出す
-      console.log(`集計開始: ${cls}, 人数: ${size}`);
-    };
-    container.appendChild(btn);
-  });
+// ui.js の該当部分をこれに差し替えてください
+classes.forEach(cls => {
+  const [grade, classNum] = cls.split("-"); // 学年と組を取り出す
+  const btn = document.createElement("button");
+  btn.textContent = `${grade}年${classNum}組`;
+  
+  btn.onclick = () => {
+    // 💡 外部から渡された「集計計算＆描画関数」を呼び出す
+    onClassClick(Number(grade), Number(classNum));
+  };
+  container.appendChild(btn);
+});
 }
