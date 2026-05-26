@@ -12,16 +12,14 @@
   <h2>提出状況</h2>
   <p id="message">読み込み中...</p>
 
-  <table id="table">
-    <tr>
-      <th>学年</th>
-      <th>組</th>
-      <th>出席番号</th>
-      <th>提出率</th>
-      <th>提出済み</th>
-      <th>未提出</th>
-    </tr>
-  </table>
+<table id="table">
+  <tr>
+    <th>番号</th>
+    <th>提出済み宿題</th>
+    <th>未提出宿題</th>
+    <th>提出率</th>
+  </tr>
+</table>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -76,17 +74,22 @@ try {
 
   message.textContent = "";
 
-  Object.entries(students)
+Object.entries(students)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
     .forEach(([id, info]) => {
+      // 💡 配列データ（Firestoreのリスト）をカンマ区切りの文字列に変換する処理を追加
+      const subList = Object.values(info.submitted || {}).join(", ");
+      const misList = Object.values(info.missing || {}).join(", ");
+      
+      // 提出率が数値の場合は % をつける
+      const rateDisplay = typeof info.rate === 'number' ? `${info.rate}%` : (info.rate || "0%");
+
       table.insertAdjacentHTML("beforeend", `
         <tr>
-          <td>${data.grade}</td>
-          <td>${data.classNum}</td>
-          <td>${id}</td>
-          <td>${info.rate}</td>
-          <td>${info.submitted}</td>
-          <td>${info.missing}</td>
+          <td>${id}番</td>
+          <td>${subList || "-"}</td>
+          <td>${misList || "-"}</td>
+          <td>${rateDisplay}</td>
         </tr>
       `);
     });
