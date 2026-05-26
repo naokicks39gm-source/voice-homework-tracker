@@ -130,11 +130,18 @@ export function renderSummaryTable(rows) {
 // =========================
 // renderStudentSummaryTable（完全に修正された防弾版）
 // =========================
-export function renderStudentSummaryTable(rows) {
+export function renderStudentSummaryTable(rows, context = null) {
   const container = document.getElementById("summary");
   if (!container) return;
 
   container.innerHTML = "";
+
+// 💡 タイトル情報の追加
+  if (context) {
+    const title = document.createElement("h2");
+    title.textContent = `${context.grade}年${context.classNum}組 提出状況`;
+    container.appendChild(title);
+  }
 
   const table = document.createElement("table");
   table.innerHTML = `

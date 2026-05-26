@@ -794,7 +794,7 @@ console.log("currentSummaryの状態:", currentSummary); // これを確認！
 
 if (currentSummary && typeof renderStudentSummaryTable === "function") {
     console.log("表を描画します");
-    renderStudentSummaryTable(currentSummary);
+    renderStudentSummaryTable(currentSummary, currentSummaryContext);
   } else {
     console.log("表は描画されません（条件不一致）");
   }
