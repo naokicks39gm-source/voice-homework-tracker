@@ -206,6 +206,8 @@ export function downloadHtml(filename, htmlText) {
 // ボタン作成
 // =========================
 export function renderClassButtons(onClassClick) {
+  console.log("ボタンを生成します"); // 👈 これを追加
+  
   const container = document.getElementById("class-buttons");
   if (!container) return;
 
