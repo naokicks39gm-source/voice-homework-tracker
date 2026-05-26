@@ -72,17 +72,33 @@ try {
   const data = snap.data();
   const students = data.students;
 
+
+  // 💡 ここで「〇年〇組」を表示する要素を追加
+  const infoHeader = document.createElement("h3");
+  infoHeader.textContent = `${data.grade}年${data.classNum}組`;
+  message.parentNode.insertBefore(infoHeader, message.nextSibling);
+
   message.textContent = "";
 
 Object.entries(students)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .forEach(([id, info]) => {
-      // 💡 配列データ（Firestoreのリスト）をカンマ区切りの文字列に変換する処理を追加
+ .forEach(([id, info]) => {
       const subList = Object.values(info.submitted || {}).join(", ");
       const misList = Object.values(info.missing || {}).join(", ");
       
-      // 提出率が数値の場合は % をつける
-      const rateDisplay = typeof info.rate === 'number' ? `${info.rate}%` : (info.rate || "0%");
+      // 💡 提出率の表記を修正：提出数/全提出数 (パーセント%)
+      // 提出数は subList が空でなければその数、空なら0
+      const subArray = Object.values(info.submitted || {});
+      const submittedCount = subArray.length;
+      
+      // 全提出数は「提出済み数 + 未提出数」で算出
+      const misArray = Object.values(info.missing || {});
+      const totalHw = submittedCount + misArray.length;
+      
+      // パーセントの計算
+      const percentage = totalHw === 0 ? 0 : Math.round((submittedCount / totalHw) * 100);
+      
+      const rateDisplay = `${submittedCount}/${totalHw} (${percentage}%)`;
 
       table.insertAdjacentHTML("beforeend", `
         <tr>
