@@ -6,23 +6,6 @@ import { getKey } from "./storage.js";
  * submitted系はstorageからのみ取得
  */
 
-// =========================
-// renderState
-// =========================
-export function renderState(state) {
-  const el = document.getElementById("state");
-  if (!el) return;
-
-  const key = getKey(state);
-  const submitted = getNumbers(key);
-
-  el.innerHTML = `
-    <div>grade: ${state.grade ?? "-"}</div>
-    <div>class: ${state.classNum ?? "-"}</div>
-    <div>homeworkNo: ${state.hw ?? "-"}</div>
-    <div>submitted: ${submitted.length ? submitted.join(", ") : "-"}</div>
-  `;
-}
 
 
 // =========================

@@ -3,7 +3,7 @@ import { parseCommand } from "./parser.js?v=20260502-student-summary-01";
 import { add, clearAllData, commit, getKey, getNumbers, loadFromLocalStorage, remove, submit } from "./storage.js?v=20260502-reset-01";
 import { resetSpeechMemory, setSpeechHandler, startSpeech } from "./speech.js?v=20260502-logs-01";
 import { buildStudentSummary, buildSummary } from "./summary.js?v=20260522-emergency-fixed-v1";
-import { downloadCsv, downloadHtml, renderHistory, renderList, renderState, renderStudentSummaryTable, renderSummaryTable ,renderClassButtons } from "./ui.js?v=20260508-student-html-01";
+import { downloadCsv, downloadHtml, renderHistory, renderList, renderStudentSummaryTable, renderSummaryTable ,renderClassButtons } from "./ui.js?v=20260508-student-html-01";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { publishStudentSummaryToFirestore } from "./firebasebackup.js";
@@ -786,7 +786,6 @@ function getCurrentKey() {
 
 function render(state) {
 console.log("render 実行中..."); // ログを追加
-  renderState(state);
   renderMetaControls();
   renderHistory(); // ←これ絶対必要
 
