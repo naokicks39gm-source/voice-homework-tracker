@@ -682,47 +682,47 @@ firestoreLogoutBtn?.addEventListener("click", async () => {
   }
 });
 
-firestoreBackupBtn?.addEventListener("click", async () => {
+
+
+
+
+// 「Firestoreバックアップ」ボタンのイベントリスナーは削除し、
+// こちらの処理に統合します
+publishStudentShareBtn?.addEventListener("click", async () => {
   try {
-    const { backupLocalDataToFirestore, getCurrentUser } = await loadFirebaseBackupModule();
+    // 1. 公開データ用のバリデーション（公開処理に必要なチェック）
+    if (!Array.isArray(currentSummary) || currentSummary.length === 0 || currentSummary[0]?.student === undefined) {
+      alert("先に生徒別集計を表示してください。");
+      return;
+    }
+
+    const { getCurrentUser, backupLocalDataToFirestore, publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
+    
+    // 2. ログインチェック
     if (!getCurrentUser()) {
       alert("先に管理者ログインしてください。");
       return;
     }
 
+    // 3. バックアップ処理の実行
     const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
     const homeworkHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
-
+    
     await backupLocalDataToFirestore({
       homeworkMap,
       homeworkHistory,
       createdAt: new Date(),
       appVersion: "localStorage-backup-v1"
     });
+    console.log("バックアップ完了");
 
-    alert("Firestoreバックアップ成功");
-  } catch {
-    alert("Firestoreバックアップ失敗。接続設定やFirestoreルールを確認してください。");
-  }
-});
-
-publishStudentShareBtn?.addEventListener("click", async () => {
-  try {
-    if (!Array.isArray(currentSummary) || currentSummary.length === 0 || currentSummary[0]?.student === undefined) {
-      alert("先に生徒別集計を表示してください。");
-      return;
-    }
-
-    const { getCurrentUser, publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
-    if (!getCurrentUser()) {
-      alert("先に管理者ログインしてください。");
-      return;
-    }
-
+    // 4. 生徒公開データの保存
     await publishStudentSummaryToFirestore(currentSummary, currentSummaryContext);
-    alert("生徒公開データをFirestoreへ保存しました");
-  } catch {
-    alert("生徒公開データの保存に失敗しました。ログイン状態やFirestoreルールを確認してください。");
+    
+    alert("バックアップと公開データの保存が完了しました！");
+  } catch (error) {
+    console.error(error);
+    alert("処理に失敗しました。ログイン状態やネットワークを確認してください。");
   }
 });
 
