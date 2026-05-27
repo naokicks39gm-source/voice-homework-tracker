@@ -789,11 +789,10 @@ function render(state) {
   renderMetaControls();
   renderHistory();
 
-  console.log("currentSummaryの状態:", currentSummary);
-
   // ボタン要素を取得
   const publishBtn = document.getElementById("publishStudentShareBtn");
 
+  // 表の描画
   if (currentSummary && typeof renderStudentSummaryTable === "function") {
     console.log("表を描画します");
     renderStudentSummaryTable(currentSummary, currentSummaryContext);
@@ -801,7 +800,7 @@ function render(state) {
     // 集計がある場合：ボタンを表示
     if (publishBtn) publishBtn.style.display = "inline-block";
   } else {
-    console.log("表は描画されません（条件不一致）");
+    console.log("表は描画されません");
     
     // 集計がない場合：ボタンを隠す
     if (publishBtn) publishBtn.style.display = "none";
