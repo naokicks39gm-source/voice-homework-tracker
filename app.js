@@ -49,6 +49,7 @@ let lastDebugCmdSignature = "";
 let currentSummary = null;
 let currentSummaryContext = null;
 let saveLock = false;
+let hasAutoSynced = false;
 
 
 function resolveKeyFromState(state) {
@@ -789,21 +790,27 @@ function render(state) {
   renderMetaControls();
   renderHistory();
 
-  // ボタン要素を取得
   const publishBtn = document.getElementById("publishStudentShareBtn");
 
-  // 表の描画
   if (currentSummary && typeof renderStudentSummaryTable === "function") {
     console.log("表を描画します");
     renderStudentSummaryTable(currentSummary, currentSummaryContext);
     
-    // 集計がある場合：ボタンを表示
-    if (publishBtn) publishBtn.style.display = "inline-block";
+    
+      // --- ここから自動同期ロジック ---
+      if (!hasAutoSynced) {
+        hasAutoSynced = true; // 一度実行したらフラグを立てる
+        console.log("自動バックアップ＆公開を開始します...");
+        publishBtn.click(); // ボタンのクリックイベントをプログラムから発火
+      }
+      // --- ここまで ---
+    
   } else {
     console.log("表は描画されません");
     
-    // 集計がない場合：ボタンを隠す
-    if (publishBtn) publishBtn.style.display = "none";
+    // 集計がリセットされたらフラグもリセットする（次の集計でまた自動同期させるため）
+    hasAutoSynced = false; 
+    
   }
 }
 setSpeechHandler(handleInput);
