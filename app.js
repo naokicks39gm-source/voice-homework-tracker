@@ -767,24 +767,7 @@ function initApp() {
   };
   startSpeech();
   
-  // 💡 修正: grade, classNum に加え hw を受け取るように変更
-  renderClassButtons((grade, classNum, hw) => {
-    const history = loadHistorySafely();
 
-    console.log("集計用履歴データ:", history);
-
-    // 💡 修正: 第5引数に hw を追加
-    currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
-    currentSummaryContext = { grade, classNum, hw };
-    console.log("集計データを生成しました:", currentSummary);
-    
-    // 💡 状態も更新（renderでstate.hwを参照するため）
-    state.grade = grade;
-    state.classNum = classNum;
-    state.hw = hw;
-    
-    render(state);
-  });
   safeRender(state);
 }
 
@@ -795,30 +778,42 @@ function getCurrentKey() {
 
 function render(state) {
   console.log("render 実行中...");
+  
+  // 1. メタ情報と履歴の描画
   renderMetaControls();
   renderHistory();
 
-  const publishBtn = document.getElementById("publishStudentShareBtn");
+  // 2. ★ここでボタンを再描画（毎回最新のlocalStorageを参照する）
+  renderClassButtons((grade, classNum, hw) => {
+    const history = loadHistorySafely();
+    // 項目(hw)を含めて集計を計算
+    currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
+    currentSummaryContext = { grade, classNum, hw };
+    
+    // 状態を同期
+    state.grade = grade;
+    state.classNum = classNum;
+    state.hw = hw;
+    
+    // 再描画
+    safeRender(state);
+  });
 
+  // 3. 集計表の表示ロジック
+  const publishBtn = document.getElementById("publishStudentShareBtn");
   if (currentSummary && typeof renderStudentSummaryTable === "function") {
     console.log("表を描画します");
     renderStudentSummaryTable(currentSummary, currentSummaryContext);
     
-    
-      // --- ここから自動同期ロジック ---
-      if (!hasAutoSynced) {
-        hasAutoSynced = true; // 一度実行したらフラグを立てる
-        console.log("自動バックアップ＆公開を開始します...");
-        publishBtn.click(); // ボタンのクリックイベントをプログラムから発火
-      }
-      // --- ここまで ---
-    
+    // 自動同期ロジック
+    if (!hasAutoSynced && publishBtn) {
+      hasAutoSynced = true;
+      console.log("自動バックアップ＆公開を開始します...");
+      publishBtn.click();
+    }
   } else {
     console.log("表は描画されません");
-    
-    // 集計がリセットされたらフラグもリセットする（次の集計でまた自動同期させるため）
     hasAutoSynced = false; 
-    
   }
 }
 setSpeechHandler(handleInput);
