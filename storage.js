@@ -22,10 +22,10 @@ function legacyKeyToCommand(key) {
   };
 }
 
-export function getKey(cmd) {
-  // 年度を含めると summary.js の正規表現にヒットしなくなるため、
-  // 1-1-宿題8 の形式に統一します
-  return `${cmd.grade}-${cmd.classNum}-宿題${cmd.hw}`;
+// storage.js の getKey 関数
+export function getKey({ grade, classNum, hw }) {
+  // 「宿題」という文字列を削除し、純粋に引数からキーを生成する
+  return `${grade}-${classNum}-${hw}`;
 }
 
 function migrateLegacyData() {

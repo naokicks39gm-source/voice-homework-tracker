@@ -303,22 +303,17 @@ async function loadFirebaseBackupModule() {
   return import("./firebaseBackup.js?v=20260508-student-public-01");
 }
 
+// app.js の updateState を以下のように修正してください
 function updateState(cmd) {
-  if (cmd.grade != null) {
-    state.grade = Number(cmd.grade);
-  }
-
-  if (cmd.classNum != null) {
-    state.classNum = Number(cmd.classNum);
-  }
-
+  if (cmd.grade != null) state.grade = Number(cmd.grade);
+  if (cmd.classNum != null) state.classNum = Number(cmd.classNum);
+  
+  // 【修正】Number変換をせず、文字列のまま受け入れる
   if (cmd.hw != null) {
-    state.hw = Number(cmd.hw);
+    state.hw = cmd.hw; 
   }
 
-  if (cmd.nums?.length) {
-    state.lastNums = cmd.nums;
-  }
+  if (cmd.nums?.length) state.lastNums = cmd.nums;
 }
 
 // 📦 ローカルストレージ内の可能性のある全種類の履歴キーからデータをサルベージする安全関数
@@ -840,11 +835,13 @@ function focusTextarea() {
     }
   });
 }
+// app.js の normalizeCmd を修正
 function normalizeCmd(cmd, prevState) {
   return {
     grade: Number.isFinite(cmd.grade) ? cmd.grade : prevState.grade,
     classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : prevState.classNum,
-    hw: Number.isFinite(cmd.hw) ? cmd.hw : prevState.hw,
+    // 【修正】hw を数字変換せず、そのまま保持する
+    hw: cmd.hw ?? prevState.hw, 
     nums: Array.isArray(cmd.nums) ? cmd.nums : []
   };
 }
