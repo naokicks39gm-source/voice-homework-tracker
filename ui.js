@@ -196,30 +196,25 @@ export function downloadHtml(filename, htmlText) {
 // ボタン作成
 // =========================
 export function renderClassButtons(onClassClick) {
-  console.log("ボタンを生成します"); // 👈 これを追加
-  
   const container = document.getElementById("class-buttons");
   if (!container) return;
 
   container.innerHTML = "";
   const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
   
-  // 履歴から「学年-組」の組み合わせを抽出（重複排除）
-  const classes = [...new Set(history.map(item => {
-    const parts = item.key.split("-");
-    return `${parts[0]}-${parts[1]}`;
-  }))];
+  // 履歴から「学年-組-項目」の組み合わせを抽出（重複排除）
+  const uniqueItems = [...new Set(history.map(item => item.key))];
 
-// ui.js の該当部分をこれに差し替えてください
-classes.forEach(cls => {
-  const [grade, classNum] = cls.split("-"); // 学年と組を取り出す
-  const btn = document.createElement("button");
-  btn.textContent = `${grade}年${classNum}組`;
-  
-  btn.onclick = () => {
-    // 💡 外部から渡された「集計計算＆描画関数」を呼び出す
-    onClassClick(Number(grade), Number(classNum));
-  };
-  container.appendChild(btn);
-});
+  uniqueItems.forEach(key => {
+    const [grade, classNum, hw] = key.split("-");
+    const btn = document.createElement("button");
+    // 💡 項目名までボタン名に含める
+    btn.textContent = `${grade}年${classNum}組 ${hw ?? "不明"}`;
+    
+    btn.onclick = () => {
+      // 💡 3つの情報を渡す
+      onClassClick(Number(grade), Number(classNum), hw);
+    };
+    container.appendChild(btn);
+  });
 }

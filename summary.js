@@ -26,14 +26,24 @@ function parseKey(key) {
 }
 
 // 3. 生徒別サマリー集計
-export function buildStudentSummary(history, grade, classNum, providedSize) {
-  console.log("summary.js受取データ:", { history, grade, classNum, providedSize });
+export function buildStudentSummary(history, grade, classNum, providedSize, targetHw) {
+  console.log("summary.js受取データ:", { history, grade, classNum, providedSize, targetHw });
 
   // 1. 基本チェック
   if (!Array.isArray(history)) {
     console.error("summary.js: historyが配列ではありません！");
     return [];
   }
+
+  // 💡 フィルタリングロジックを更新
+  // targetHw が指定されている場合のみ、その項目で絞り込む
+  const filteredHistory = targetHw 
+    ? history.filter(item => item.key === `${grade}-${classNum}-${targetHw}`)
+    : history.filter(item => item.key.startsWith(`${grade}-${classNum}-`)); // 指定なしなら全項目
+  // 💡 キーが「学年-組-項目名」と完全に一致するものだけを抽出
+  const filtered = history.filter(item => {
+    return item.key === `${grade}-${classNum}-${targetHw}`;
+  });
 
   // 2. 自動的にサイズを決定
   const classHistory = history.filter(item => item.key.startsWith(`${grade}-${classNum}-`));
