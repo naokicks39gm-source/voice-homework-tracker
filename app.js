@@ -408,8 +408,13 @@ export function handleInput(text, isInputEvent = false) {
   if (cmd.type === "studentSummary") {
     // 🛠️【超防弾修正】フォールバック関数から確実に実データを取得
     const history = loadHistorySafely();
-    currentSummary = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size);
-    currentSummaryContext = { grade: cmd.grade, classNum: cmd.classNum };
+    currentSummary = buildStudentSummary(history, cmd.grade, cmd.classNum, cmd.size, cmd.hw);
+    currentSummaryContext = { grade: cmd.grade, classNum: cmd.classNum, hw: cmd.hw };
+    
+    // 💡 状態更新
+    state.grade = cmd.grade;
+    state.classNum = cmd.classNum;
+    if (cmd.hw) state.hw = cmd.hw;
     safeRender(state);
     return; // 👈 集計が動いたらここで即時終了（暴走させない）
   }
@@ -754,22 +759,30 @@ window.onload = () => {
 
 
 
+// app.js の initApp 関数を以下に書き換えてください
 function initApp() {
   state = {
-  ...state,
-  ...loadFromLocalStorage()
-}; // ←これに変更
+    ...state,
+    ...loadFromLocalStorage()
+  };
   startSpeech();
-  // 💡 ボタン生成はここで一度だけ実行する！
-  renderClassButtons((grade, classNum) => {
+  
+  // 💡 修正: grade, classNum に加え hw を受け取るように変更
+  renderClassButtons((grade, classNum, hw) => {
     const history = loadHistorySafely();
 
-// もし history が空なら集計が動かないのでログを出す
-  console.log("集計用履歴データ:", history);
+    console.log("集計用履歴データ:", history);
 
-    currentSummary = buildStudentSummary(history, grade, classNum, null);
-    currentSummaryContext = { grade, classNum };
+    // 💡 修正: 第5引数に hw を追加
+    currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
+    currentSummaryContext = { grade, classNum, hw };
     console.log("集計データを生成しました:", currentSummary);
+    
+    // 💡 状態も更新（renderでstate.hwを参照するため）
+    state.grade = grade;
+    state.classNum = classNum;
+    state.hw = hw;
+    
     render(state);
   });
   safeRender(state);

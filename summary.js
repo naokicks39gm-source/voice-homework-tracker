@@ -29,26 +29,23 @@ function parseKey(key) {
 export function buildStudentSummary(history, grade, classNum, providedSize, targetHw) {
   console.log("summary.js受取データ:", { history, grade, classNum, providedSize, targetHw });
 
-  // 1. 基本チェック
   if (!Array.isArray(history)) {
     console.error("summary.js: historyが配列ではありません！");
     return [];
   }
 
-  // 💡 フィルタリングロジックを更新
-  // targetHw が指定されている場合のみ、その項目で絞り込む
+  // 💡 【修正】targetHwが指定されている場合、完全一致ではなく「前方一致」でフィルタする
+  // これにより「数学」というキーで「数学1」「数学3」などがすべて拾えるようになる
   const filteredHistory = targetHw 
-    ? history.filter(item => item.key === `${grade}-${classNum}-${targetHw}`)
-    : history.filter(item => item.key.startsWith(`${grade}-${classNum}-`)); // 指定なしなら全項目
-  // 💡 キーが「学年-組-項目名」と完全に一致するものだけを抽出
-  const filtered = history.filter(item => {
-    return item.key === `${grade}-${classNum}-${targetHw}`;
-  });
+    ? history.filter(item => item.key.startsWith(`${grade}-${classNum}-${targetHw}`))
+    : history.filter(item => item.key.startsWith(`${grade}-${classNum}-`));
 
-  // 2. 自動的にサイズを決定
+  // 2. 自動的にサイズを決定 (全項目を含めたそのクラスの最大出席番号を算出)
   const classHistory = history.filter(item => item.key.startsWith(`${grade}-${classNum}-`));
   const maxNum = Math.max(...classHistory.flatMap(item => item.nums), 0);
   
+  // 以降の集計ロジック（filteredHistory を使って計算）
+  // ... 
   // 💡 ここで `size` を一回だけ定義（const または let）
   const size = providedSize || maxNum || 30; 
 

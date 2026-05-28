@@ -11,14 +11,8 @@ export function parseClass(text) {
 }
 
 export function parseHomework(text) {
-  // 1. 年・組を削除
-  // 2. 読点「、」やスペースなどの不要な記号を削除
-  // 3. 項目名（数字以外の文字）＋数字 を抽出
-  const cleanText = text
-    .replace(/\d+年/g, "")
-    .replace(/\d+組/g, "")
-    .replace(/[、。,\s]/g, ""); 
-    
+  const cleanText = text.replace(/\d+年/g, "").replace(/\d+組/g, "").replace(/[、。,\s]/g, "");
+  // 数字も項目名の一部として含める（元の仕様に戻す）
   const m = cleanText.match(/([^\d]+)(\d+)/);
   return m ? `${m[1]}${m[2]}` : null;
 }

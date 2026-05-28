@@ -195,25 +195,37 @@ export function downloadHtml(filename, htmlText) {
 // =========================
 // ボタン作成
 // =========================
+// ui.js の renderClassButtons
 export function renderClassButtons(onClassClick) {
   const container = document.getElementById("class-buttons");
   if (!container) return;
-
   container.innerHTML = "";
+
   const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
   
-  // 履歴から「学年-組-項目」の組み合わせを抽出（重複排除）
-  const uniqueItems = [...new Set(history.map(item => item.key))];
+  // 「学年-組-項目」の組み合わせを重複なしで作成
+  const uniqueKeys = [...new Set(history.map(item => item.key))];
 
-  uniqueItems.forEach(key => {
+// ui.js 内の renderClassButtons の中身を以下に差し替えてください
+  uniqueKeys.forEach(key => {
     const [grade, classNum, hw] = key.split("-");
+    
+    // 💡 ボタン名を作る時だけ、末尾の数字を除去する（数学1 → 数学）
+    const displayLabel = hw.replace(/\d+$/, ""); 
+    
+    // このIDで重複を防ぐ（例: btn-1-1-数学）
+    const btnId = `btn-${grade}-${classNum}-${displayLabel}`;
+    if (document.getElementById(btnId)) return; 
+
     const btn = document.createElement("button");
-    // 💡 項目名までボタン名に含める
-    btn.textContent = `${grade}年${classNum}組 ${hw ?? "不明"}`;
+    btn.id = btnId;
+    // 表示は「数学」だが、クリック時には元の「数学1」という hw を渡す
+    btn.textContent = `${grade}年${classNum}組 ${displayLabel}`;
     
     btn.onclick = () => {
-      // 💡 3つの情報を渡す
-      onClassClick(Number(grade), Number(classNum), hw);
+        // 💡 重要な修正: 検索のヒントとして「displayLabel (数学)」を渡す
+        // これにより summary.js が startsWith("数学") で数学1も数学3も拾える
+        onClassClick(Number(grade), Number(classNum), displayLabel);
     };
     container.appendChild(btn);
   });
