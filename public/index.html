@@ -51,6 +51,8 @@ const params = new URLSearchParams(location.search);
 const year = params.get("year") || new Date().getFullYear().toString();
 const grade = params.get("grade");
 const classNum = params.get("class");
+const targetHw = params.get("hw"); // 💡 追加：URLから項目名を取得
+
 
 if (!grade || !classNum) {
   message.textContent = "grade / class が不足";
@@ -69,52 +71,43 @@ try {
     throw new Error("no data");
   }
 
-  const data = snap.data();
-  const students = data.students;
+// index.html 内のデータ取得部分
+const data = snap.data();
+  // 構造: data.students["数学"]... のように階層化されている想定
+  const category = targetHw || "宿題";
+  
+  // data.students が存在し、その中に category キーがあればそれを使う
+  const students = (data.students && data.students[category]) ? data.students[category] : {};
 
+  if (Object.keys(students).length === 0) {
+      message.textContent = `${category} のデータが見つかりません`;
+      throw new Error("no category data");
+  }
 
-  // 💡 ここで「〇年〇組」を表示する要素を追加
+  // 以下、students を使って表を描画
   const infoHeader = document.createElement("h3");
-  infoHeader.textContent = `${data.grade}年${data.classNum}組`;
+  infoHeader.textContent = `${data.grade}年${data.classNum}組 ${category} 提出状況`;
   message.parentNode.insertBefore(infoHeader, message.nextSibling);
-
   message.textContent = "";
 
-Object.entries(students)
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
- .forEach(([id, info]) => {
-      const subList = Object.values(info.submitted || {}).join(", ");
-      const misList = Object.values(info.missing || {}).join(", ");
-      
-      // 💡 提出率の表記を修正：提出数/全提出数 (パーセント%)
-      // 提出数は subList が空でなければその数、空なら0
-      const subArray = Object.values(info.submitted || {});
-      const submittedCount = subArray.length;
-      
-      // 全提出数は「提出済み数 + 未提出数」で算出
-      const misArray = Object.values(info.missing || {});
-      const totalHw = submittedCount + misArray.length;
-      
-      // パーセントの計算
-      const percentage = totalHw === 0 ? 0 : Math.round((submittedCount / totalHw) * 100);
-      
-      const rateDisplay = `${submittedCount}/${totalHw} (${percentage}%)`;
-
+  Object.entries(students).sort((a, b) => Number(a[0]) - Number(b[0])).forEach(([id, info]) => {
+      // 描画ロジック...
       table.insertAdjacentHTML("beforeend", `
         <tr>
           <td>${id}番</td>
-          <td>${subList || "-"}</td>
-          <td>${misList || "-"}</td>
-          <td>${rateDisplay}</td>
+          <td>${Object.values(info.submitted || {}).join(", ") || "-"}</td>
+          <td>${Object.values(info.missing || {}).join(", ") || "-"}</td>
+          <td>${info.submittedCount || 0}/${info.totalHw || 0} (${info.rate || 0}%)</td>
         </tr>
       `);
-    });
+  });
 
   console.log("DONE");
 
 } catch (e) {
   console.error(e);
-  message.textContent = "読み込み失敗";
+  // message を上書きしないように調整
+  if (!message.textContent) message.textContent = "読み込み失敗";
 }
 </script>
 

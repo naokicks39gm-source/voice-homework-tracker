@@ -8,9 +8,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
-  addDoc,
+  addDoc, // これが不足している可能性があります
   collection,
   doc,
+  getDoc, // これも保存ロジックで使うため追加
   getFirestore,
   serverTimestamp,
   setDoc
@@ -73,35 +74,32 @@ export async function publishStudentSummaryToFirestore(rows, context) {
   const user = getCurrentUser();
   if (!user) throw new Error("Firebase login required");
 
-  console.log("UID:", user.uid);
-  console.log("CONTEXT:", context);
-
   const grade = Number(context?.grade);
   const classNum = Number(context?.classNum);
-
-  if (!Number.isFinite(grade) || !Number.isFinite(classNum)) {
-    throw new Error("Invalid context");
-  }
+  const hwCategory = context?.hw || "宿題"; // URLのhwパラメータがここに入る想定
 
   const year = new Date().getFullYear().toString();
-
-  // ★統一キー（これが読み書き共通ルール）
   const docId = `${year}_${grade}_${classNum}`;
+  const docRef = doc(db, "studentShares", docId);
 
-  const students = {};
+  // 1. 既存データの取得（他の教科を残すため）
+  let existingStudents = {};
+  try {
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      existingStudents = snap.data().students || {};
+    }
+  } catch (e) { console.warn("既存データなし、新規作成します"); }
 
+  // 2. 指定した教科（hwCategory）のみ更新
+  existingStudents[hwCategory] = {};
   rows.forEach((row) => {
     const student = Number(row.student);
     if (!Number.isFinite(student)) return;
-
-    students[student] = {
+    existingStudents[hwCategory][student] = {
       rate: Number(row.rate) || 0,
-      submitted: Array.isArray(row.submitted)
-        ? row.submitted.map(Number).filter(Number.isFinite)
-        : [],
-      missing: Array.isArray(row.missing)
-        ? row.missing.map(Number).filter(Number.isFinite)
-        : [],
+      submitted: Array.isArray(row.submitted) ? row.submitted.map(Number).filter(Number.isFinite) : [],
+      missing: Array.isArray(row.missing) ? row.missing.map(Number).filter(Number.isFinite) : [],
       submittedCount: Number(row.submittedCount) || 0,
       totalHw: Number(row.totalHw) || 0
     };
@@ -111,18 +109,10 @@ export async function publishStudentSummaryToFirestore(rows, context) {
     year,
     grade,
     classNum,
-    students,
+    students: existingStudents,
     updatedAt: serverTimestamp()
   };
 
-  console.log("WRITE_DOC:", docId, payload);
-
-  try {
-    await setDoc(doc(db, "studentShares", docId), payload);
-    console.log("SUCCESS");
-    return true;
-  } catch (e) {
-    console.error("PUBLISH_ERROR:", e.code, e.message);
-    throw e;
-  }
+  await setDoc(docRef, payload);
+  return true;
 }
