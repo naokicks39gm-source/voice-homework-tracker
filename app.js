@@ -518,114 +518,41 @@ textarea.addEventListener("input", () => {
 });
 
 
+// app.js 内の saveBtn 修正
 saveBtn?.addEventListener("click", async () => {
-  console.log("SAVE_CLICKED");
-
+  console.log("SAVE_CLICKED: 保存のみ実行");
   const text = textarea.value.trim();
   if (!text) return;
 
   const cmd = parseCommand(text);
   const safe = normalizeCmd(cmd, state);
-  const key = resolveKey(safe);
+  
+  // ★ key をここで定義
+  const key = getKey({ grade: safe.grade, classNum: safe.classNum, hw: safe.hw });
 
-  console.log("CMD:", cmd);
-  console.log("SAFE:", safe);
-  console.log("KEY:", key);
-  console.log("STATE:", state);
-
-  // ① keyが取れないなら即終了（ここ曖昧にするな）
-  if (!key) {
-    console.error("FATAL: key is null");
-    return;
+  if (safe.type === "delete") {
+    if (safe.nums?.length) {
+      remove(key, safe.nums);
+    }
+  } else {
+    if (safe.nums?.length) add(key, safe.nums);
   }
-
-  // ② state更新（ここが本体）
-  if (safe.type !== "delete" && safe.nums?.length) {
-    add(key, safe.nums);
-  }
-
-  if (safe.type === "delete" && safe.nums?.length) {
-    remove(key, safe.nums);
-  }
-
-  // ③ commitは更新後のみ
+  
+  // 確定
   commit(key);
 
-  // ④ Firestore（safeのみ使う）
-  try {
-    const context = {
-      grade: safe.grade,
-      classNum: safe.classNum
-    };
-
-    const rows = safe.nums.map((n) => ({
-      student: n,
-      rate: 0,
-      missing: [],
-      totalHw: 1
-    }));
-
-    await publishStudentSummaryToFirestore(rows, context);
-  } catch (e) {
-    console.error("FIRESTORE_SAVE_ERROR:", e);
-  }
-
-// ⑤【修正・防弾仕様】ローカルストレージのすべての歴史キーに同期させて保存する
-  try {
-    const keys = ["homeworkHistory", "homework_history", "history"];
-    let currentHistory = loadHistorySafely();
-    
-    // 💡 今回保存する出席番号を、判定と保存の前にあらかじめ昇順ソートしておく
-    const sortedNums = Array.isArray(safe.nums) 
-      ? [...safe.nums].sort((a, b) => Number(a) - Number(b)) 
-      : [];
-
-    // 直近の履歴（最後の要素）を取得
-    const lastItem = currentHistory[currentHistory.length - 1];
-    
-    // 💡 比較時もソート済みの「sortedNums」を使用することで、2重書き込みを100%完璧に防ぐ
-    const isDuplicate = lastItem && 
-                        lastItem.key === key && 
-                        JSON.stringify(lastItem.nums) === JSON.stringify(sortedNums);
-
-    if (isDuplicate) {
-      console.log("🛡️ 重複を検知したため、2回目の履歴書き込みをスキップしました");
-    } else {
-      currentHistory.push({
-        key: key,
-        nums: sortedNums, // 昇順ソート済みの配列を保存
-        timestamp: Date.now()
-      });
-      // すべての可能性のあるキーに一重書きしてズレを撲滅
-      keys.forEach(k => {
-        localStorage.setItem(k, JSON.stringify(currentHistory));
-      });
-      console.log("🔥 HISTORY_WRITE_SUCCESS_EXPLICIT_WITH_NUMS:", sortedNums);
+  // ★履歴ダンプ（これでどのデータが生きているか確認します）
+  const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+  console.log(`--- キー: ${key} の履歴を確認 ---`);
+  // 最新の5件を表示して変化を見ます
+  history.slice(-5).forEach((h, index) => {
+    if (h.key === key) {
+        console.log(`[履歴] nums: ${JSON.stringify(h.nums)}`);
     }
-  } catch (err) {
-    console.error("HISTORY_WRITE_FAILED:", err);
-  }
-  console.log("BEFORE_RESET_STATE:", state);
+  });
 
-  lastSavedText = text;
-  lastSavedSignature = key;
-
-  // ✨【完全修正】保存が確定したら、引き継ぎ用の古い出席番号メモリを完全にクリアする！
-  state.lastNums = [];
-
-  // 💥 割り込みイベント（handleInput）のパルスを完全にやり過ごすために、描画処理を一瞬遅らせる（0ミリ秒の非同期キューに入れる）
   keepInputReset();
-  resetSpeechMemory();
-
-  setTimeout(() => {
-    console.log("🚀 FORCED_FINAL_RENDER_START");
-    safeRender(state);
-    if (typeof renderHistory === "function") {
-      renderHistory(); // 👈 念押しで履歴をもう一度強制発火
-    }
-  }, 50); 
 });
-
 resetTextBtn?.addEventListener("click", () => {
   resetTextInputOnly();
 });
@@ -784,44 +711,34 @@ function getCurrentKey() {
 
 function render(state) {
   console.log("render 実行中...");
-  
+
+  // ロジックを簡潔に：
+  // 1. メタ情報描画
   renderMetaControls();
   renderHistory();
-
+  
+  // 2. 集計ボタンの再描画 (クリック時に currentSummaryContext が更新される)
   renderClassButtons((grade, classNum, hw) => {
     const history = loadHistorySafely();
-    // 💡 取得するHWがnullにならないよう調整
-    const targetHw = hw || "宿題"; 
-    
-    currentSummary = buildStudentSummary(history, grade, classNum, null, targetHw);
-    currentSummaryContext = { grade, classNum, hw: targetHw };
-    
-    state.grade = grade;
-    state.classNum = classNum;
-    state.hw = targetHw; // 💡 stateを更新！
-    
-    safeRender(state);
+    currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
+    currentSummaryContext = { grade, classNum, hw };
+    safeRender({ grade, classNum, hw });
   });
-  // ... (以下略)
 
-  // 3. 集計表の表示ロジック
-// 3. 集計表の表示ロジック
-const publishBtn = document.getElementById("publishStudentShareBtn");
-if (currentSummary && typeof renderStudentSummaryTable === "function") {
-  console.log("表を描画します");
-  renderStudentSummaryTable(currentSummary, currentSummaryContext);
-  
-  // 💡 修正：前回同期した教科名(hasAutoSynced)と現在の教科名が違う場合のみ、再度同期する
-  const syncKey = `${state.grade}-${state.classNum}-${state.hw}`;
-  if (hasAutoSynced !== syncKey && publishBtn) {
-    console.log("自動バックアップ＆公開を開始します...", syncKey);
-    hasAutoSynced = syncKey; // 教科ごとのキーを保存
-    publishBtn.click();
+  // 3. 表の表示（ここで currentSummaryContext があれば必ず描画する）
+  const publishBtn = document.getElementById("publishStudentShareBtn");
+  if (currentSummary && currentSummaryContext) {
+    console.log("表を描画します");
+    renderStudentSummaryTable(currentSummary, currentSummaryContext);
+    
+    const syncKey = `${currentSummaryContext.grade}-${currentSummaryContext.classNum}-${currentSummaryContext.hw}`;
+    
+    // 再同期のガード
+    if (hasAutoSynced !== syncKey && publishBtn) {
+       hasAutoSynced = syncKey;
+       publishBtn.click();
+    }
   }
-} else {
-  console.log("表は描画されません");
-  hasAutoSynced = false; 
-}
 }
 setSpeechHandler(handleInput);
 
@@ -850,12 +767,13 @@ function focusTextarea() {
     }
   });
 }
+
 // app.js の normalizeCmd を修正
 function normalizeCmd(cmd, prevState) {
   return {
+    type: cmd.type, // 💡 これが抜けていたため undefined になっていました
     grade: Number.isFinite(cmd.grade) ? cmd.grade : prevState.grade,
     classNum: Number.isFinite(cmd.classNum) ? cmd.classNum : prevState.classNum,
-    // 【修正】hw を数字変換せず、そのまま保持する
     hw: cmd.hw ?? prevState.hw, 
     nums: Array.isArray(cmd.nums) ? cmd.nums : []
   };

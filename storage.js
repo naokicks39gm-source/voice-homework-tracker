@@ -100,18 +100,16 @@ export function saveToLocalStorage() {
 }
 
 function saveHistory(entry) {
-  const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  // 1. 全履歴を取得
+  let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
 
-  const exists = history.some(
-    (h) =>
-      h.key === entry.key &&
-      JSON.stringify(h.nums) === JSON.stringify(entry.nums)
-  );
+  // 2. 同じ key を持つ古い履歴をすべて除去する
+  // これにより、同じ宿題の「古い提出状況（削除前のデータなど）」が残ることを防ぎます
+  history = history.filter((h) => h.key !== entry.key);
 
-  if (!exists) {
-    history.push(entry);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-  }
+  // 3. 最新のデータのみを末尾に追加して保存
+  history.push(entry);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
 export function add(key, nums) {
