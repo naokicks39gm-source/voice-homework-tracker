@@ -144,15 +144,31 @@ export function submit(key, nums) {
 }
 
 export function commit(key) {
-   console.log("commit", key); 
-  homeworkMap[key] = { ...(pendingMap[key] || {}) };
+  console.log("commit", key);
+
+  // 1. 提出番号のみを配列として抽出する（Object.keysのゴミ対策）
+  // 提出データは必ず「番号: true」のような形式で管理されている前提ですが、
+  // もし単純な配列として管理されているなら、それを受け継ぐロジックにしています
+  const currentPending = pendingMap[key] || {};
+  
+  // 提出番号の配列を作成（数値のみを抽出）
+  const nums = Object.keys(currentPending)
+    .filter(k => currentPending[k] === true) // 真偽値がtrueのものだけ残す
+    .map(Number);
+
+  // 2. homeworkMap を完全に置き換える（上書きではなく、最新状態でのセット）
+  // これで過去の不要なデータが混入するのを防ぎます
+  homeworkMap[key] = currentPending;
+
+  // 3. ローカルストレージを最新の状態に同期
   saveToLocalStorage();
-  pendingMap[key] = { ...(homeworkMap[key] || {}) };
-saveHistory({
-  key,
-  nums: normalizeNums(Object.keys(homeworkMap[key] || {})),
-  timestamp: Date.now()
-});
+
+  // 4. 履歴を保存（クリーニングされた nums を使用）
+  saveHistory({
+    key,
+    nums: nums, // フィルタリング済みのクリーンな配列
+    timestamp: Date.now()
+  });
 }
 
 export function get(key) {

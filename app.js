@@ -618,11 +618,7 @@ firestoreLogoutBtn?.addEventListener("click", async () => {
 // こちらの処理に統合します
 publishStudentShareBtn?.addEventListener("click", async () => {
   try {
-    if (!Array.isArray(currentSummary) || currentSummary.length === 0 || currentSummary[0]?.student === undefined) {
-      alert("先に生徒別集計を表示してください。");
-      return;
-    }
-
+    // 1. 同期に必要なモジュールを取得
     const { getCurrentUser, backupLocalDataToFirestore, publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
     
     if (!getCurrentUser()) {
@@ -630,19 +626,35 @@ publishStudentShareBtn?.addEventListener("click", async () => {
       return;
     }
 
-    // 💡 【重要】現在の state から最新の教科名(hw)を確実に取得する
+    // 2. 現在の状態からキーを確定
+    const key = resolveKeyFromState(state);
+    if (!key) {
+      alert("同期対象のデータが見つかりません。学年・組・宿題を選択してください。");
+      return;
+    }
+
+    // 3. ローカルの真実のデータ（マスター）を取得
+    const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
+    const homeworkHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+
+    // 4. 今まさに表示している「対象の宿題データ」をMapから直接抽出
+    // currentSummaryを計算し直すのではなく、保存されている生のデータを抽出
+    const targetData = homeworkMap[key]; 
+    if (!targetData) {
+        alert("該当する宿題データが存在しません。");
+        return;
+    }
+
     const context = {
       grade: state.grade,
       classNum: state.classNum,
-      hw: state.hw // ここで最新の教科名を取得
+      hw: state.hw
     };
 
     console.log("Firestore送信コンテキスト:", context);
+    console.log("送信データ:", targetData);
 
-    // バックアップ処理
-    const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
-    const homeworkHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
-    
+    // 5. バックアップ処理（全体）
     await backupLocalDataToFirestore({
       homeworkMap,
       homeworkHistory,
@@ -650,10 +662,11 @@ publishStudentShareBtn?.addEventListener("click", async () => {
       appVersion: "localStorage-backup-v1"
     });
 
-    // 💡 生徒公開データの保存（最新の context を渡す）
-    await publishStudentSummaryToFirestore(currentSummary, context);
+    // 6. 「公開用データ」として、計算されたサマリーではなく「生のデータ」と「コンテキスト」を送る
+    // これにより、受信側で同じロジックで再描画すれば100%一致します
+    await publishStudentSummaryToFirestore(targetData, context);
     
-    alert(`「${context.hw}」のデータを保存しました！`);
+    alert(`「${context.hw}」のデータを同期しました！`);
   } catch (error) {
     console.error(error);
     alert("処理に失敗しました。");
@@ -708,16 +721,12 @@ function initApp() {
 function getCurrentKey() {
   return null;
 }
-
-function render(state) {
+async function render(state) {
   console.log("render 実行中...");
 
-  // ロジックを簡潔に：
-  // 1. メタ情報描画
   renderMetaControls();
   renderHistory();
   
-  // 2. 集計ボタンの再描画 (クリック時に currentSummaryContext が更新される)
   renderClassButtons((grade, classNum, hw) => {
     const history = loadHistorySafely();
     currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
@@ -725,19 +734,39 @@ function render(state) {
     safeRender({ grade, classNum, hw });
   });
 
-  // 3. 表の表示（ここで currentSummaryContext があれば必ず描画する）
-  const publishBtn = document.getElementById("publishStudentShareBtn");
   if (currentSummary && currentSummaryContext) {
     console.log("表を描画します");
     renderStudentSummaryTable(currentSummary, currentSummaryContext);
     
-    const syncKey = `${currentSummaryContext.grade}-${currentSummaryContext.classNum}-${currentSummaryContext.hw}`;
+    // 【重要】描画のたびに同期を試みるが、データがない時は絶対に同期しないガード
+    await triggerAutoSync(currentSummaryContext);
+  }
+}
+
+// 自動同期専用の安全関数
+async function triggerAutoSync(context) {
+  const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
+  const key = `${context.grade}-${context.classNum}-${context.hw}`;
+  const targetData = homeworkMap[key];
+
+  if (!targetData || Object.keys(targetData).length === 0) {
+    console.log("自動同期スキップ: データが空のためFirestore保護");
+    return;
+  }
+
+  try {
+    const { publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
     
-    // 再同期のガード
-    if (hasAutoSynced !== syncKey && publishBtn) {
-       hasAutoSynced = syncKey;
-       publishBtn.click();
-    }
+    // 💡 変換処理: map形式 {1: true, 2: true} を 集計用配列 [{student: 1, ...}, ...] に変換
+    // buildStudentSummary が内部で使っているのと同じロジックをここで適用します
+    const history = loadHistorySafely();
+    const formattedData = buildStudentSummary(history, context.grade, context.classNum, null, context.hw);
+
+    console.log("描画同期実行 (変換済み):", key);
+    // 配列形式に変換したものを送信
+    await publishStudentSummaryToFirestore(formattedData, context);
+  } catch (e) {
+    console.error("同期失敗:", e);
   }
 }
 setSpeechHandler(handleInput);
