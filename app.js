@@ -746,25 +746,35 @@ async function render(state) {
 // 自動同期専用の安全関数
 async function triggerAutoSync(context) {
   const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
-  const key = `${context.grade}-${context.classNum}-${context.hw}`;
+  
+  // 1. 完全一致するキーを探す
+  let key = `${context.grade}-${context.classNum}-${context.hw}`;
+  
+  // 2. もし見つからない場合、キーの一部（学年-組）にマッチする最新のものを探索
+  if (!homeworkMap[key]) {
+    const prefix = `${context.grade}-${context.classNum}-`;
+    const keys = Object.keys(homeworkMap).filter(k => k.startsWith(prefix));
+    // 最新のもの（または最初に見つかったもの）をバックアップとして利用
+    if (keys.length > 0) {
+      key = keys[keys.length - 1]; 
+      console.log("キー補完を実行:", key);
+    }
+  }
+
   const targetData = homeworkMap[key];
 
-  if (!targetData || Object.keys(targetData).length === 0) {
-    console.log("自動同期スキップ: データが空のためFirestore保護");
+  if (!targetData) {
+    console.warn("自動同期スキップ: データが見つかりません。キー:", key);
     return;
   }
 
   try {
     const { publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
-    
-    // 💡 変換処理: map形式 {1: true, 2: true} を 集計用配列 [{student: 1, ...}, ...] に変換
-    // buildStudentSummary が内部で使っているのと同じロジックをここで適用します
     const history = loadHistorySafely();
     const formattedData = buildStudentSummary(history, context.grade, context.classNum, null, context.hw);
 
-    console.log("描画同期実行 (変換済み):", key);
-    // 配列形式に変換したものを送信
     await publishStudentSummaryToFirestore(formattedData, context);
+    console.log("描画同期成功:", key);
   } catch (e) {
     console.error("同期失敗:", e);
   }
