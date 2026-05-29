@@ -691,7 +691,6 @@ firestoreLogoutBtn?.addEventListener("click", async () => {
 // こちらの処理に統合します
 publishStudentShareBtn?.addEventListener("click", async () => {
   try {
-    // 1. 公開データ用のバリデーション（公開処理に必要なチェック）
     if (!Array.isArray(currentSummary) || currentSummary.length === 0 || currentSummary[0]?.student === undefined) {
       alert("先に生徒別集計を表示してください。");
       return;
@@ -699,13 +698,21 @@ publishStudentShareBtn?.addEventListener("click", async () => {
 
     const { getCurrentUser, backupLocalDataToFirestore, publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
     
-    // 2. ログインチェック
     if (!getCurrentUser()) {
       alert("先に管理者ログインしてください。");
       return;
     }
 
-    // 3. バックアップ処理の実行
+    // 💡 【重要】現在の state から最新の教科名(hw)を確実に取得する
+    const context = {
+      grade: state.grade,
+      classNum: state.classNum,
+      hw: state.hw // ここで最新の教科名を取得
+    };
+
+    console.log("Firestore送信コンテキスト:", context);
+
+    // バックアップ処理
     const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
     const homeworkHistory = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
     
@@ -715,15 +722,14 @@ publishStudentShareBtn?.addEventListener("click", async () => {
       createdAt: new Date(),
       appVersion: "localStorage-backup-v1"
     });
-    console.log("バックアップ完了");
 
-    // 4. 生徒公開データの保存
-    await publishStudentSummaryToFirestore(currentSummary, currentSummaryContext);
+    // 💡 生徒公開データの保存（最新の context を渡す）
+    await publishStudentSummaryToFirestore(currentSummary, context);
     
-    alert("バックアップと公開データの保存が完了しました！");
+    alert(`「${context.hw}」のデータを保存しました！`);
   } catch (error) {
     console.error(error);
-    alert("処理に失敗しました。ログイン状態やネットワークを確認してください。");
+    alert("処理に失敗しました。");
   }
 });
 
@@ -779,25 +785,24 @@ function getCurrentKey() {
 function render(state) {
   console.log("render 実行中...");
   
-  // 1. メタ情報と履歴の描画
   renderMetaControls();
   renderHistory();
 
-  // 2. ★ここでボタンを再描画（毎回最新のlocalStorageを参照する）
   renderClassButtons((grade, classNum, hw) => {
     const history = loadHistorySafely();
-    // 項目(hw)を含めて集計を計算
-    currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
-    currentSummaryContext = { grade, classNum, hw };
+    // 💡 取得するHWがnullにならないよう調整
+    const targetHw = hw || "宿題"; 
     
-    // 状態を同期
+    currentSummary = buildStudentSummary(history, grade, classNum, null, targetHw);
+    currentSummaryContext = { grade, classNum, hw: targetHw };
+    
     state.grade = grade;
     state.classNum = classNum;
-    state.hw = hw;
+    state.hw = targetHw; // 💡 stateを更新！
     
-    // 再描画
     safeRender(state);
   });
+  // ... (以下略)
 
   // 3. 集計表の表示ロジック
   const publishBtn = document.getElementById("publishStudentShareBtn");
