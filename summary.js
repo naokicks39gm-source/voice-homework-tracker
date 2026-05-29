@@ -73,20 +73,34 @@ export function buildStudentSummary(history, grade, classNum, providedSize, targ
   const allHw = Array.from(allHwSet).sort();
   const totalHw = allHw.length;
 
-  return Array.from({ length: size }, (_, i) => {
+return Array.from({ length: size }, (_, i) => {
     const student = i + 1;
-    // 提出した全項目リスト
-    const submitted = map[student] ? Array.from(map[student]) : [];
-    // カテゴリ全体での未提出確認（カテゴリが合致するものだけを抽出）
-    const missing = allHw.filter((cat) => !submitted.some(s => s.startsWith(cat)));
-    
+    const submitted = map[student]
+      ? Array.from(map[student]).sort((a, b) => a - b) // 数字でソート
+      : [];
+      
+    // 💡 提出済み項目から「数学」「理科」などのカテゴリ名を削除して数字だけにする
+    // 例: "数学1" -> "1", "理科3" -> "3"
+    const submittedNums = submitted.map(hwName => {
+        return hwName.replace(/^[^\d]+/, ""); 
+    });
+
+    // 💡 未提出も同様に数字だけにする
+    // allHw は ["数学1", "数学3"] のような形式なので、同様に置換
+    const missing = allHw
+      .filter((hw) => !submitted.includes(hw))
+      .map(hwName => hwName.replace(/^[^\d]+/, ""));
+
+    const totalHw = allHw.length;
+    const rate = totalHw === 0 ? 0 : Math.round((submitted.length / totalHw) * 100);
+
     return {
       student,
-      submitted,
-      missing,
+      submitted: submittedNums, // 数字のみの配列を渡す
+      missing: missing,         // 数字のみの配列を渡す
       submittedCount: submitted.length,
       totalHw,
-      rate: totalHw === 0 ? 0 : Math.round((submitted.length / totalHw) * 100)
+      rate
     };
   });
 }

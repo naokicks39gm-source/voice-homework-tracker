@@ -122,7 +122,13 @@ export function renderStudentSummaryTable(rows, context = null) {
 // 💡 1. タイトルとボタンを囲むヘッダーラッパーを作成
 if (context) {
     const title = document.createElement("h2");
-    title.textContent = `${context.grade}年${context.classNum}組 提出状況`;
+    
+    // 💡 context.hw があれば「〇〇 」を付与する（数字のみの場合は空文字にする）
+    // 数字以外の文字（数学など）だけを抽出してタイトルに繋げます
+    const hwPart = context.hw ? context.hw.replace(/\d+$/, "") : "";
+    const hwDisplay = hwPart ? `${hwPart} ` : "";
+    
+    title.textContent = `${context.grade}年${context.classNum}組 ${hwDisplay}提出状況`;
     container.appendChild(title);
   }
 
@@ -130,8 +136,8 @@ if (context) {
   table.innerHTML = `
     <tr>
       <th>番号</th>
-      <th>提出済み宿題</th>
-      <th>未提出宿題</th>
+      <th>提出済み</th>
+      <th>未提出</th>
       <th>提出率</th>
     </tr>
   `;
