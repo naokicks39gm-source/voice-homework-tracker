@@ -805,21 +805,23 @@ function render(state) {
   // ... (以下略)
 
   // 3. 集計表の表示ロジック
-  const publishBtn = document.getElementById("publishStudentShareBtn");
-  if (currentSummary && typeof renderStudentSummaryTable === "function") {
-    console.log("表を描画します");
-    renderStudentSummaryTable(currentSummary, currentSummaryContext);
-    
-    // 自動同期ロジック
-    if (!hasAutoSynced && publishBtn) {
-      hasAutoSynced = true;
-      console.log("自動バックアップ＆公開を開始します...");
-      publishBtn.click();
-    }
-  } else {
-    console.log("表は描画されません");
-    hasAutoSynced = false; 
+// 3. 集計表の表示ロジック
+const publishBtn = document.getElementById("publishStudentShareBtn");
+if (currentSummary && typeof renderStudentSummaryTable === "function") {
+  console.log("表を描画します");
+  renderStudentSummaryTable(currentSummary, currentSummaryContext);
+  
+  // 💡 修正：前回同期した教科名(hasAutoSynced)と現在の教科名が違う場合のみ、再度同期する
+  const syncKey = `${state.grade}-${state.classNum}-${state.hw}`;
+  if (hasAutoSynced !== syncKey && publishBtn) {
+    console.log("自動バックアップ＆公開を開始します...", syncKey);
+    hasAutoSynced = syncKey; // 教科ごとのキーを保存
+    publishBtn.click();
   }
+} else {
+  console.log("表は描画されません");
+  hasAutoSynced = false; 
+}
 }
 setSpeechHandler(handleInput);
 
