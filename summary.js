@@ -13,95 +13,79 @@ function getEntryNumbers(entry) {
   return [];
 }
 
-// 2. 🔥【修正の核心】キーの末尾に何があっても絶対に部分一致で数字をぶち抜く安全な正規表現
+// 💡 カテゴリ名と数字を正しく分離するパーサー
 function parseKey(key) {
-  // 末尾の $ を除去し、文字列の途中に「1-1-宿題7」があれば確実に捕まえるように修正
-  const match = String(key || "").match(/(\d+)-(\d+)-宿題(\d+)/);
+  // 正規表現: 1-1-数学3 のような形式を分解
+  // (\d+)-(\d+)-([^\d]+)(\d+)
+  // 1:学年, 2:組, 3:カテゴリ名(数学), 4:番号(3)
+  const match = String(key || "").match(/^(\d+)-(\d+)-([^\d]+)(\d+)$/);
   if (!match) return null;
   return {
     grade: Number(match[1]),
     classNum: Number(match[2]),
-    hw: Number(match[3])
+    category: match[3], // "数学" や "理科"
+    hw: `${match[3]}${match[4]}` // "数学3" (これまでの集計用)
   };
 }
 
-// 3. 生徒別サマリー集計
 export function buildStudentSummary(history, grade, classNum, providedSize, targetHw) {
-  console.log("summary.js受取データ:", { history, grade, classNum, providedSize, targetHw });
+  if (!Array.isArray(history)) return [];
 
-  if (!Array.isArray(history)) {
-    console.error("summary.js: historyが配列ではありません！");
-    return [];
-  }
-
-  // 💡 【修正】targetHwが指定されている場合、完全一致ではなく「前方一致」でフィルタする
-  // これにより「数学」というキーで「数学1」「数学3」などがすべて拾えるようになる
+  // 1. 指定されたカテゴリ(targetHw)またはクラス全体でフィルタリング
+  // targetHwが"数学"なら、1-1-数学 で始まる全ての履歴を対象にする
   const filteredHistory = targetHw 
     ? history.filter(item => item.key.startsWith(`${grade}-${classNum}-${targetHw}`))
     : history.filter(item => item.key.startsWith(`${grade}-${classNum}-`));
 
-  // 2. 自動的にサイズを決定 (全項目を含めたそのクラスの最大出席番号を算出)
+  // 2. サイズ決定
   const classHistory = history.filter(item => item.key.startsWith(`${grade}-${classNum}-`));
   const maxNum = Math.max(...classHistory.flatMap(item => item.nums), 0);
-  
-  // 以降の集計ロジック（filteredHistory を使って計算）
-  // ... 
-  // 💡 ここで `size` を一回だけ定義（const または let）
   const size = providedSize || maxNum || 30; 
 
-  // 3. 必要な変数の準備
+  // 3. 集計用マップ作成
   const map = {};
   const allHwSet = new Set();
-  const prefix = `${grade}-${classNum}-宿題`;
   const evalLimit = 120;
-  
-  // 💡 ここで使っていた `displayLimit` も `size` を使うように修正
-  const displayLimit = size; 
-  const finalHistory = history;
 
-  finalHistory.forEach((entry) => {
-    if (!entry || !entry.key || !entry.key.startsWith(prefix)) return;
-
-    // parseKey が定義されている前提ですが、もしエラーならここを確認
+  filteredHistory.forEach((entry) => {
     const parsed = parseKey(entry.key); 
     if (!parsed) return;
 
-    const hw = parsed.hw;
-    allHwSet.add(hw);
+    // 💡 履歴の「数学1」「数学3」を、すべて「数学」として allHwSet に追加
+    // これにより、全種類の項目が1つのカテゴリーとして合算される
+    const category = parsed.category; 
+    allHwSet.add(category);
 
-    const studentNums = getEntryNumbers(entry);
+    const studentNums = getEntryNumbers(entry); // ※getEntryNumbersがこのファイルにある場合
     studentNums.forEach((n) => {
       if (n >= 1 && n <= evalLimit) {
-        if (!map[n]) {
-          map[n] = new Set();
-        }
-        map[n].add(hw);
+        if (!map[n]) map[n] = new Set();
+        // 💡 マップには「数学1」「数学3」の個別の識別子を入れておく
+        map[n].add(parsed.hw); 
       }
     });
   });
 
-  const allHw = Array.from(allHwSet).sort((a, b) => a - b);
+  const allHw = Array.from(allHwSet).sort();
   const totalHw = allHw.length;
 
-  return Array.from({ length: displayLimit }, (_, i) => {
+  return Array.from({ length: size }, (_, i) => {
     const student = i + 1;
-    const submitted = map[student]
-      ? Array.from(map[student]).sort((a, b) => a - b)
-      : [];
-    const missing = allHw.filter((hw) => !submitted.includes(hw));
-    const rate = totalHw === 0 ? 0 : Math.round((submitted.length / totalHw) * 100);
-
+    // 提出した全項目リスト
+    const submitted = map[student] ? Array.from(map[student]) : [];
+    // カテゴリ全体での未提出確認（カテゴリが合致するものだけを抽出）
+    const missing = allHw.filter((cat) => !submitted.some(s => s.startsWith(cat)));
+    
     return {
       student,
       submitted,
       missing,
       submittedCount: submitted.length,
       totalHw,
-      rate
+      rate: totalHw === 0 ? 0 : Math.round((submitted.length / totalHw) * 100)
     };
   });
 }
-
 // 4. クラス全体サマリー集計
 export function buildSummary(history, grade, classNum, size) {
   const result = {};

@@ -222,11 +222,12 @@ export function renderClassButtons(onClassClick) {
     // 表示は「数学」だが、クリック時には元の「数学1」という hw を渡す
     btn.textContent = `${grade}年${classNum}組 ${displayLabel}`;
     
-    btn.onclick = () => {
-        // 💡 重要な修正: 検索のヒントとして「displayLabel (数学)」を渡す
-        // これにより summary.js が startsWith("数学") で数学1も数学3も拾える
-        onClassClick(Number(grade), Number(classNum), displayLabel);
-    };
+ // ui.js の renderClassButtons 内の onclick
+btn.onclick = () => {
+    // 💡 数学1 -> 数学、のように数字を消して渡す
+    const displayLabel = hw.replace(/\d+$/, "");
+    onClassClick(Number(grade), Number(classNum), displayLabel);
+};
     container.appendChild(btn);
   });
 }
