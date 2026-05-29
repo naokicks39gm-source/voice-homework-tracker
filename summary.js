@@ -42,26 +42,30 @@ export function buildStudentSummary(history, grade, classNum, providedSize, targ
   const maxNum = Math.max(...classHistory.flatMap(item => item.nums), 0);
   const size = providedSize || maxNum || 30; 
 
-  // 3. 集計用マップ作成
+ // 3. 必要な変数の準備
   const map = {};
   const allHwSet = new Set();
   const evalLimit = 120;
 
+  // 💡 【修正】そのカテゴリ（targetHw）に存在する「個別の課題名（数学1, 数学3など）」を全網羅する
+  history.forEach((entry) => {
+    const parsed = parseKey(entry.key);
+    // targetHw（例: 数学）に属する履歴なら、その個別の課題名（数学1など）をセットに追加
+    if (parsed && parsed.category === targetHw) {
+      allHwSet.add(parsed.hw); 
+    }
+  });
+
+  // 個別の提出状況をマッピング
   filteredHistory.forEach((entry) => {
-    const parsed = parseKey(entry.key); 
+    const parsed = parseKey(entry.key);
     if (!parsed) return;
 
-    // 💡 履歴の「数学1」「数学3」を、すべて「数学」として allHwSet に追加
-    // これにより、全種類の項目が1つのカテゴリーとして合算される
-    const category = parsed.category; 
-    allHwSet.add(category);
-
-    const studentNums = getEntryNumbers(entry); // ※getEntryNumbersがこのファイルにある場合
+    const studentNums = getEntryNumbers(entry);
     studentNums.forEach((n) => {
       if (n >= 1 && n <= evalLimit) {
         if (!map[n]) map[n] = new Set();
-        // 💡 マップには「数学1」「数学3」の個別の識別子を入れておく
-        map[n].add(parsed.hw); 
+        map[n].add(parsed.hw); // ここも数学1, 数学3が入る
       }
     });
   });
