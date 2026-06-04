@@ -727,12 +727,14 @@ async function render(state) {
   renderMetaControls();
   renderHistory();
   
-  renderClassButtons((grade, classNum, hw) => {
-    const history = loadHistorySafely();
-    currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
-    currentSummaryContext = { grade, classNum, hw };
-    safeRender({ grade, classNum, hw });
-  });
+// app.js の render 関数内
+renderClassButtons((grade, classNum, hw) => {
+  const history = loadHistorySafely();
+  // hw が渡されているはずなので、それをそのまま context にする
+  currentSummary = buildStudentSummary(history, grade, classNum, null, hw);
+  currentSummaryContext = { grade, classNum, hw }; // ここで hw を保持
+  safeRender({ grade, classNum, hw });
+});
 
   if (currentSummary && currentSummaryContext) {
     console.log("表を描画します");
@@ -745,36 +747,23 @@ async function render(state) {
 
 // 自動同期専用の安全関数
 async function triggerAutoSync(context) {
-  const homeworkMap = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
-  
-  // 1. 完全一致するキーを探す
-  let key = `${context.grade}-${context.classNum}-${context.hw}`;
-  
-  // 2. もし見つからない場合、キーの一部（学年-組）にマッチする最新のものを探索
-  if (!homeworkMap[key]) {
-    const prefix = `${context.grade}-${context.classNum}-`;
-    const keys = Object.keys(homeworkMap).filter(k => k.startsWith(prefix));
-    // 最新のもの（または最初に見つかったもの）をバックアップとして利用
-    if (keys.length > 0) {
-      key = keys[keys.length - 1]; 
-      console.log("キー補完を実行:", key);
-    }
-  }
+  // 1. ガード：汎用名はスキップ
+  if (context.hw === "宿題" || !context.hw) return;
 
-  const targetData = homeworkMap[key];
-
-  if (!targetData) {
-    console.warn("自動同期スキップ: データが見つかりません。キー:", key);
+  // 2. 画面に表示されている currentSummary をそのまま利用
+  // これが最も信頼できる「今表示中の最新データ」です
+  if (!currentSummary || currentSummary.length === 0) {
+    console.warn("同期スキップ: 現在表示中の集計データがありません");
     return;
   }
 
   try {
     const { publishStudentSummaryToFirestore } = await loadFirebaseBackupModule();
-    const history = loadHistorySafely();
-    const formattedData = buildStudentSummary(history, context.grade, context.classNum, null, context.hw);
-
-    await publishStudentSummaryToFirestore(formattedData, context);
-    console.log("描画同期成功:", key);
+    
+    // 3. 変換不要：currentSummary は既に renderStudentSummaryTable が求めている配列形式です
+    await publishStudentSummaryToFirestore(currentSummary, context);
+    
+    console.log("描画同期成功 (画面データ利用):", context.hw);
   } catch (e) {
     console.error("同期失敗:", e);
   }
