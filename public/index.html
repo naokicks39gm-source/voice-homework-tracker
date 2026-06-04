@@ -8,11 +8,7 @@
 </head>
 
 <body>
-<div id="hw-selector">
-  <button onclick="window.location.search = '?year=2026&grade=1&class=1&hw=数学'">数学</button>
-  <button onclick="window.location.search = '?year=2026&grade=1&class=1&hw=英語'">英語</button>
-  <button onclick="window.location.search = '?year=2026&grade=1&class=1&hw=宿題'">宿題</button>
-</div>
+<div id="hw-selector"></div>
   <h2>提出状況</h2>
   <p id="message">読み込み中...</p>
 
@@ -29,8 +25,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { doc, getDoc, getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-console.log("START");
-
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "voice-homework-checker.firebaseapp.com",
@@ -45,18 +39,13 @@ const db = getFirestore(app);
 
 const table = document.getElementById("table");
 const message = document.getElementById("message");
-
-if (!table || !message) {
-  throw new Error("DOM not found");
-}
+const hwSelector = document.getElementById("hw-selector");
 
 const params = new URLSearchParams(location.search);
-
 const year = params.get("year") || new Date().getFullYear().toString();
 const grade = params.get("grade");
 const classNum = params.get("class");
-const targetHw = params.get("hw"); // 💡 追加：URLから項目名を取得
-
+const targetHw = params.get("hw");
 
 if (!grade || !classNum) {
   message.textContent = "grade / class が不足";
@@ -65,22 +54,39 @@ if (!grade || !classNum) {
 
 const docId = `${year}_${grade}_${classNum}`;
 
-console.log("DOC_ID:", docId);
-
 try {
   const snap = await getDoc(doc(db, "studentShares", docId));
-
   if (!snap.exists()) {
     message.textContent = "データなし";
     throw new Error("no data");
   }
 
-// index.html 内のデータ取得部分
-const data = snap.data();
-  // 構造: data.students["数学"]... のように階層化されている想定
-  const category = targetHw || "宿題";
+  const data = snap.data();
+  console.log("Firestore上の全データ構造:", data); // ★これを確認
+  console.log("Firebase から取得した students キー一覧:", Object.keys(data.students));
   
-  // data.students が存在し、その中に category キーがあればそれを使う
+// 1. ボタンの自動生成（修正版：数字を含むものはすべて除外）
+  if (data.students) {
+    hwSelector.innerHTML = "";
+    
+    Object.keys(data.students).forEach(categoryName => {
+      // 💡 修正: 数字が含まれている場合はボタンにしない
+      // /\d/ は「数字がひとつでも含まれるか」という正規表現です
+      if (/\d/.test(categoryName)) return; 
+      
+      const btn = document.createElement("button");
+      btn.textContent = categoryName;
+      btn.onclick = () => {
+        const newParams = new URLSearchParams(location.search);
+        newParams.set("hw", categoryName);
+        location.search = newParams.toString();
+      };
+      hwSelector.appendChild(btn);
+    });
+  }
+
+  // 2. 表示する教科の決定（指定がなければ最初の教科）
+  const category = targetHw || Object.keys(data.students || {})[0];
   const students = (data.students && data.students[category]) ? data.students[category] : {};
 
   if (Object.keys(students).length === 0) {
@@ -88,14 +94,13 @@ const data = snap.data();
       throw new Error("no category data");
   }
 
-  // 以下、students を使って表を描画
+  // 3. 描画
   const infoHeader = document.createElement("h3");
-  infoHeader.textContent = `${data.grade}年${data.classNum}組 ${category} 提出状況`;
+  infoHeader.textContent = `${data.grade || grade}年${data.classNum || classNum}組 ${category} 提出状況`;
   message.parentNode.insertBefore(infoHeader, message.nextSibling);
   message.textContent = "";
 
   Object.entries(students).sort((a, b) => Number(a[0]) - Number(b[0])).forEach(([id, info]) => {
-      // 描画ロジック...
       table.insertAdjacentHTML("beforeend", `
         <tr>
           <td>${id}番</td>
@@ -106,11 +111,8 @@ const data = snap.data();
       `);
   });
 
-  console.log("DONE");
-
 } catch (e) {
   console.error(e);
-  // message を上書きしないように調整
   if (!message.textContent) message.textContent = "読み込み失敗";
 }
 </script>
