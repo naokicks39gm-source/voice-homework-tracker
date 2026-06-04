@@ -103,3 +103,47 @@ th {
 #summary {
   margin-top: 12px;
 }
+
+/* ===== 教科ボタン・削除ボタンのカスタマイズ ===== */
+.subject-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-right: 12px;
+  margin-bottom: 8px;
+}
+
+/* 削除ボタンを教科ボタンの右上に配置 */
+.delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: none; /* デフォルトは非表示 */
+  background: #ff4d4d;
+  color: black;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* マウスホバー時に削除ボタンを表示 */
+.subject-wrapper:hover .delete-btn {
+  display: block;
+}
+
+/* 教科名ボタンの余白調整 */
+.subject-wrapper button:first-child {
+  margin-right: 0;
+}
+
+/* 削除ボタンのホバー時の挙動を無効化（背景色を固定） */
+.delete-btn:hover {
+  background-color: #ff4d4d !important; /* 赤色を強制固定 */
+  transform: scale(1.1); /* 少し大きくしてクリックしやすくする */
+}

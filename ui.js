@@ -211,18 +211,15 @@ export function renderClassButtons(onClassClick) {
   const uniqueKeys = [...new Set(history.map(item => item.key))];
 
   uniqueKeys.forEach(key => {
-    // 例: "1-1-数学1"
     const [grade, classNum, hw] = key.split("-");
     const displayLabel = hw.replace(/\d+$/, "");
     const btnId = `btn-${grade}-${classNum}-${displayLabel}`;
     
     if (document.getElementById(btnId)) return; 
 
-    // コンテナ（ボタンと×を並べるための箱）
+    // コンテナ：インラインブロックにして CSS クラスを付与
     const wrapper = document.createElement("span");
-    wrapper.style.display = "inline-flex";
-    wrapper.style.alignItems = "center";
-    wrapper.style.gap = "5px";
+    wrapper.className = "subject-wrapper"; 
 
     // ① 教科ボタン
     const btn = document.createElement("button");
@@ -233,38 +230,30 @@ export function renderClassButtons(onClassClick) {
     // ② 削除ボタン (×)
     const delBtn = document.createElement("button");
     delBtn.textContent = "×";
-    delBtn.style.color = "red";
-    delBtn.style.padding = "2px 8px";
+    delBtn.className = "delete-btn"; // クラスを付与
     
-  // ui.js 内の削除ボタン処理部分を修正
-delBtn.onclick = async (e) => {
+    delBtn.onclick = async (e) => {
       e.stopPropagation();
       if (confirm(`項目「${displayLabel}」を完全に削除しますか？`)) {
         try {
           const { deleteSubjectFromFirestore } = await import("./firebasebackup.js");
           const docId = `2026_${grade}_${classNum}`;
           
-          // 1. Firestore から削除
           await deleteSubjectFromFirestore(docId, displayLabel);
 
-          // 2. 💡 ローカルストレージ(homeworkHistory)からも該当項目を削除
           const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
           const filteredHistory = history.filter(item => {
-             // item.key (例: "1-1-英語1") から教科部分を取り出して比較
              const parts = item.key.split("-");
-             const hw = parts[2]; // "英語1" など
-             const subjectName = hw.replace(/\d+$/, ""); // "英語" にする
-             return subjectName !== displayLabel;
+             return parts[2].replace(/\d+$/, "") !== displayLabel;
           });
           localStorage.setItem("homeworkHistory", JSON.stringify(filteredHistory));
           
-          // 3. ローカルストレージ(homeworkMap)からも削除（念のため）
           const map = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
-          delete map[`${grade}-${classNum}-${displayLabel}`]; // 形式に合わせてキーを調整してください
+          delete map[`${grade}-${classNum}-${displayLabel}`];
           localStorage.setItem("homeworkMap", JSON.stringify(map));
 
           alert("削除しました。");
-          location.reload(); // ページをリロードすればボタンは消えます
+          location.reload();
         } catch (err) {
           console.error("削除エラー:", err);
           alert("削除に失敗しました。");
