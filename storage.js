@@ -22,10 +22,13 @@ function legacyKeyToCommand(key) {
   };
 }
 
-// storage.js の getKey 関数
+// storage.js の getKey を以下に修正してください
 export function getKey({ grade, classNum, hw }) {
-  // 「宿題」という文字列を削除し、純粋に引数からキーを生成する
-  return `${grade}-${classNum}-${hw}`;
+  // 💡 末尾の数字を削除せず、そのまま教科名として使う
+  // これにより「英語11」と「英語12」が別のキーとして管理されます
+  const cleanHw = String(hw || "").trim();
+  
+  return `${grade}-${classNum}-${cleanHw}`;
 }
 
 function migrateLegacyData() {
@@ -113,9 +116,11 @@ function saveHistory(entry) {
 }
 
 export function add(key, nums) {
-   console.log("add", key, nums); 
+  console.log("add", key, nums); 
+  
+  // 💡 もし pendingMap が空なら、確定済みのデータ(homeworkMap)から引き継ぐ
   if (!pendingMap[key]) {
-    pendingMap[key] = {};
+    pendingMap[key] = homeworkMap[key] ? JSON.parse(JSON.stringify(homeworkMap[key])) : {};
   }
 
   normalizeNums(nums).forEach((n) => {
@@ -146,29 +151,30 @@ export function submit(key, nums) {
 export function commit(key) {
   console.log("commit", key);
 
-  // 1. 提出番号のみを配列として抽出する（Object.keysのゴミ対策）
-  // 提出データは必ず「番号: true」のような形式で管理されている前提ですが、
-  // もし単純な配列として管理されているなら、それを受け継ぐロジックにしています
+  // 1. 真の提出番号のみを配列として抽出
   const currentPending = pendingMap[key] || {};
-  
-  // 提出番号の配列を作成（数値のみを抽出）
   const nums = Object.keys(currentPending)
-    .filter(k => currentPending[k] === true) // 真偽値がtrueのものだけ残す
-    .map(Number);
+    .filter(k => currentPending[k] === true)
+    .map(Number)
+    .sort((a, b) => a - b); // 念のためソート
 
-  // 2. homeworkMap を完全に置き換える（上書きではなく、最新状態でのセット）
-  // これで過去の不要なデータが混入するのを防ぎます
+  // 2. 確定状態のマップを更新
   homeworkMap[key] = currentPending;
 
-  // 3. ローカルストレージを最新の状態に同期
+  // 3. ローカルストレージを保存
   saveToLocalStorage();
 
-  // 4. 履歴を保存（クリーニングされた nums を使用）
+  // 4. 【重要】履歴を保存する際、古いものを完全に除去した「現在の nums」だけをセットする
   saveHistory({
     key,
-    nums: nums, // フィルタリング済みのクリーンな配列
+    nums: nums, // ここでフィルタリング・ソート済みのクリーンな配列を渡す
     timestamp: Date.now()
   });
+
+// 💡 【ここが重要！】保存が終わったら pendingMap を完全に空にする
+  // これにより、次の教科の入力に前の教科の番号が混ざらなくなります。
+  clearPending(); 
+  console.log("pendingMap has been cleared for next input");
 }
 
 export function get(key) {
@@ -189,4 +195,12 @@ export function clearAllData() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(HISTORY_KEY);
   localStorage.removeItem(LEGACY_KEY);
+}
+// storage.js に追記
+export function set(key, nums) {
+  // 💡 既存のデータを無視して、新しい nums だけをセットする
+  pendingMap[key] = {}; 
+  normalizeNums(nums).forEach((n) => {
+    pendingMap[key][n] = true;
+  });
 }

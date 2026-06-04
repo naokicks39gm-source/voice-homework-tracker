@@ -359,7 +359,7 @@ function loadHistorySafely() {
 }
 
 
-export function handleInput(text, isInputEvent = false) {
+export async function handleInput(text, isInputEvent = false) {
   console.log("handleInput", text);
 
   const rawText = String(text || "");
@@ -474,11 +474,13 @@ export function handleInput(text, isInputEvent = false) {
     safeRender(state);
     return;
   }
-
-  // ===== add =====
+// ===== add =====
   if (cmd.type === "add") {
     saveLock = false;
-    add(key, cmd.nums);
+    // 修正前: add(key, cmd.nums);
+    // 修正後:
+    const { set } = await import("./storage.js?v=20260502-reset-01");
+    set(key, cmd.nums); // set に変更して「上書き」にする
     safeRender(state);
     return;
   }
@@ -540,6 +542,10 @@ saveBtn?.addEventListener("click", async () => {
   
   // 確定
   commit(key);
+
+// 💡 ここで確実にリセット関数を呼ぶ
+  resetRuntimeMemory(); // 既存の関数があれば
+  keepInputReset();
 
   // ★履歴ダンプ（これでどのデータが生きているか確認します）
   const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
