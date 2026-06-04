@@ -527,36 +527,21 @@ saveBtn?.addEventListener("click", async () => {
   if (!text) return;
 
   const cmd = parseCommand(text);
-  const safe = normalizeCmd(cmd, state);
+  // 解析された cmd から直接キーを生成する（stateの残骸を使わない）
+  const key = getKey({ grade: cmd.grade, classNum: cmd.classNum, hw: cmd.hw });
   
-  // ★ key をここで定義
-  const key = getKey({ grade: safe.grade, classNum: safe.classNum, hw: safe.hw });
+  if (!key) return;
 
-  if (safe.type === "delete") {
-    if (safe.nums?.length) {
-      remove(key, safe.nums);
-    }
+  if (cmd.type === "delete") {
+    // 削除のときは現在の確定データ(homeworkMap)をロードしてから remove する必要がある
+    // storage.js に remove 時にロードする機能がないなら追加が必要です
+    remove(key, cmd.nums);
   } else {
-    if (safe.nums?.length) add(key, safe.nums);
+    // 提出/追加のとき
+    add(key, cmd.nums);
   }
   
-  // 確定
   commit(key);
-
-// 💡 ここで確実にリセット関数を呼ぶ
-  resetRuntimeMemory(); // 既存の関数があれば
-  keepInputReset();
-
-  // ★履歴ダンプ（これでどのデータが生きているか確認します）
-  const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
-  console.log(`--- キー: ${key} の履歴を確認 ---`);
-  // 最新の5件を表示して変化を見ます
-  history.slice(-5).forEach((h, index) => {
-    if (h.key === key) {
-        console.log(`[履歴] nums: ${JSON.stringify(h.nums)}`);
-    }
-  });
-
   keepInputReset();
 });
 resetTextBtn?.addEventListener("click", () => {
