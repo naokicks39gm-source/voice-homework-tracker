@@ -237,19 +237,34 @@ export function renderClassButtons(onClassClick) {
     delBtn.style.padding = "2px 8px";
     
   // ui.js 内の削除ボタン処理部分を修正
-    delBtn.onclick = async (e) => {
+delBtn.onclick = async (e) => {
       e.stopPropagation();
-      // 💡 displayLabel (数字を除去した名前: 例「英語」) を使用して確認を出す
       if (confirm(`項目「${displayLabel}」を完全に削除しますか？`)) {
         try {
           const { deleteSubjectFromFirestore } = await import("./firebasebackup.js");
           const docId = `2026_${grade}_${classNum}`;
           
-          // 💡 displayLabel を削除関数に渡すことで、Firestore 上の「英語」が正しく指定される
+          // 1. Firestore から削除
           await deleteSubjectFromFirestore(docId, displayLabel);
+
+          // 2. 💡 ローカルストレージ(homeworkHistory)からも該当項目を削除
+          const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
+          const filteredHistory = history.filter(item => {
+             // item.key (例: "1-1-英語1") から教科部分を取り出して比較
+             const parts = item.key.split("-");
+             const hw = parts[2]; // "英語1" など
+             const subjectName = hw.replace(/\d+$/, ""); // "英語" にする
+             return subjectName !== displayLabel;
+          });
+          localStorage.setItem("homeworkHistory", JSON.stringify(filteredHistory));
           
+          // 3. ローカルストレージ(homeworkMap)からも削除（念のため）
+          const map = JSON.parse(localStorage.getItem("homeworkMap") || "{}");
+          delete map[`${grade}-${classNum}-${displayLabel}`]; // 形式に合わせてキーを調整してください
+          localStorage.setItem("homeworkMap", JSON.stringify(map));
+
           alert("削除しました。");
-          location.reload();
+          location.reload(); // ページをリロードすればボタンは消えます
         } catch (err) {
           console.error("削除エラー:", err);
           alert("削除に失敗しました。");
