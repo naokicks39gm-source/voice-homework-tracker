@@ -208,32 +208,56 @@ export function renderClassButtons(onClassClick) {
   container.innerHTML = "";
 
   const history = JSON.parse(localStorage.getItem("homeworkHistory") || "[]");
-  
-  // 「学年-組-項目」の組み合わせを重複なしで作成
   const uniqueKeys = [...new Set(history.map(item => item.key))];
 
-// ui.js 内の renderClassButtons の中身を以下に差し替えてください
   uniqueKeys.forEach(key => {
+    // 例: "1-1-数学1"
     const [grade, classNum, hw] = key.split("-");
-    
-    // 💡 ボタン名を作る時だけ、末尾の数字を除去する（数学1 → 数学）
-    const displayLabel = hw.replace(/\d+$/, ""); 
-    
-    // このIDで重複を防ぐ（例: btn-1-1-数学）
+    const displayLabel = hw.replace(/\d+$/, "");
     const btnId = `btn-${grade}-${classNum}-${displayLabel}`;
+    
     if (document.getElementById(btnId)) return; 
 
+    // コンテナ（ボタンと×を並べるための箱）
+    const wrapper = document.createElement("span");
+    wrapper.style.display = "inline-flex";
+    wrapper.style.alignItems = "center";
+    wrapper.style.gap = "5px";
+
+    // ① 教科ボタン
     const btn = document.createElement("button");
     btn.id = btnId;
-    // 表示は「数学」だが、クリック時には元の「数学1」という hw を渡す
     btn.textContent = `${grade}年${classNum}組 ${displayLabel}`;
+    btn.onclick = () => onClassClick(Number(grade), Number(classNum), displayLabel);
     
- // ui.js の renderClassButtons 内の onclick
-btn.onclick = () => {
-    // 💡 数学1 -> 数学、のように数字を消して渡す
-    const displayLabel = hw.replace(/\d+$/, "");
-    onClassClick(Number(grade), Number(classNum), displayLabel);
-};
-    container.appendChild(btn);
+    // ② 削除ボタン (×)
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "×";
+    delBtn.style.color = "red";
+    delBtn.style.padding = "2px 8px";
+    
+    delBtn.onclick = async (e) => {
+      e.stopPropagation();
+      if (confirm(`項目「${hw}」を完全に削除しますか？`)) {
+        try {
+          // ※ firebasebackup.js から deleteSubjectFromFirestore をインポートして使用してください
+          const { deleteSubjectFromFirestore } = await import("./firebasebackup.js");
+          
+          // ドキュメントIDは "年_学年_組" で構成されている前提 (例: 2026_1_1)
+          const docId = `2026_${grade}_${classNum}`;
+          await deleteSubjectFromFirestore(docId, hw);
+          
+          alert("削除しました。");
+          location.reload();
+        } catch (err) {
+          console.error(err);
+          alert("削除に失敗しました。");
+        }
+      }
+    };
+
+    wrapper.appendChild(btn);
+    wrapper.appendChild(delBtn);
+    container.appendChild(wrapper);
   });
 }

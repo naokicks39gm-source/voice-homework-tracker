@@ -116,3 +116,12 @@ export async function publishStudentSummaryToFirestore(rows, context) {
   await setDoc(docRef, payload);
   return true;
 }
+
+export async function deleteSubjectFromFirestore(docId, subjectName) {
+  const { doc, updateDoc, deleteField } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const { db } = await import("./firebaseInit.js"); // 自身の初期化ファイルへのパス
+  const docRef = doc(db, "studentShares", docId);
+  await updateDoc(docRef, {
+    [`students.${subjectName}`]: deleteField()
+  });
+}
