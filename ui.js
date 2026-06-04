@@ -236,21 +236,22 @@ export function renderClassButtons(onClassClick) {
     delBtn.style.color = "red";
     delBtn.style.padding = "2px 8px";
     
+  // ui.js 内の削除ボタン処理部分を修正
     delBtn.onclick = async (e) => {
       e.stopPropagation();
-      if (confirm(`項目「${hw}」を完全に削除しますか？`)) {
+      // 💡 displayLabel (数字を除去した名前: 例「英語」) を使用して確認を出す
+      if (confirm(`項目「${displayLabel}」を完全に削除しますか？`)) {
         try {
-          // ※ firebasebackup.js から deleteSubjectFromFirestore をインポートして使用してください
           const { deleteSubjectFromFirestore } = await import("./firebasebackup.js");
-          
-          // ドキュメントIDは "年_学年_組" で構成されている前提 (例: 2026_1_1)
           const docId = `2026_${grade}_${classNum}`;
-          await deleteSubjectFromFirestore(docId, hw);
+          
+          // 💡 displayLabel を削除関数に渡すことで、Firestore 上の「英語」が正しく指定される
+          await deleteSubjectFromFirestore(docId, displayLabel);
           
           alert("削除しました。");
           location.reload();
         } catch (err) {
-          console.error(err);
+          console.error("削除エラー:", err);
           alert("削除に失敗しました。");
         }
       }
